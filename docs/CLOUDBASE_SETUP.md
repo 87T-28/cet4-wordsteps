@@ -12,7 +12,8 @@
 
 - 登录方式启用邮箱验证码，登录模式选允许新用户注册并登录；关闭不需要的匿名登录。
 - 安全域名添加网站的来源 `https://87t-28.github.io`，注意同一账号 Pages 的不同项目共用这个来源。
-- API Key 中生成 **Publishable Key**（前端公开密钥）。不要使用 Secret Key、SecretId、SecretKey 或登录私钥。
+- 选择当前环境后，打开 **API Key 管理**：https://tcb.cloud.tencent.com/dev#/env/apikey 。官方身份认证文档列出此入口：https://docs.cloudbase.net/service/authentication 。部分 SDK 文档的旧链接 identity/token-management 现在会打开“登录态配置”；该页面的 Access Token、Refresh Token 不是需要的公开密钥。
+- 在 API Key 管理中生成明确标为 **Publishable Key**（客户端公开密钥）的项。不要使用服务端 API Key、Secret Key、SecretId、SecretKey 或登录私钥。若页面展示已有公开密钥，先使用已有值，不随意重新生成。
 - 按 `cloudfunctions/README.md` 创建两集合、禁止客户端直接读写、建立索引、部署 wordsteps-sync 云函数。函数包包含 package.json，选择在线安装依赖。
 - 确认邮箱能力在所选免费环境可用；如控制台提示付费或升级，不启用这条路径。
 
@@ -42,5 +43,7 @@ VITE_CLOUDBASE_PUBLISHABLE_KEY
 6. 注销需要新验证码和确认文字；检查云事件删除、邮箱身份删除、旧会话拒绝上传。
 
 学习目标暂按设备设置，当前同步范围是学习事件与据此重建的进度/错词/统计。登录会话保存在本次标签页 sessionStorage；本机缓存不等于整库加密，共用设备应退出或清除账号缓存。
+
+登录态配置中的“最大同时在线设备数”也影响验收。如果显示 1 台，需核对是否能在免费环境中调整至至少 2 台；若调整要求付费，不升级，也不宣称手机与电脑可同时登录。Access Token、Refresh Token 不作为部署配置收集。
 
 只有上述真实环境与两设备检查通过，才算 M3 完成。后续 M4 再做更完整的安全、恢复及朋友试用验收。
