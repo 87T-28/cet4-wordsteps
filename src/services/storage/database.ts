@@ -11,9 +11,11 @@ export class StudyDatabase extends Dexie {
   events!: Table<LearningEvent, string>
   progress!: Table<WordProgress, string>
   meta!: Table<{ key: string; value: string }, string>
+  synced!: Table<{ id: string }, string>
   constructor(name = 'wordsteps-guest-v1') {
     super(name)
     this.version(1).stores({ events: 'id, wordId, occurredAt, kind', progress: 'wordId, nextReviewAt', meta: 'key' })
+    this.version(2).stores({ events: 'id, wordId, occurredAt, kind', progress: 'wordId, nextReviewAt', meta: 'key', synced: 'id' })
   }
 }
 
@@ -21,7 +23,12 @@ export class LocalRepository implements LearningRepository {
   constructor(public readonly db = new StudyDatabase()) {}
   getProgress(wordId: string) { return this.db.progress.get(wordId) }
   listProgress() { return this.db.progress.toArray() }
-  listPendingEvents() { return this.db.events.toArray() }
+  listEvents() { return this.db.events.toArray() }
+  async listPendingEvents() {
+    const [events, synced] = await Promise.all([this.listEvents(), this.db.synced.toArray()])
+    const known = new Set(synced.map(row => row.id))
+    return events.filter(event => !known.has(event.id))
+  }
   async getSettings() {
     const row = await this.db.meta.get('settings')
     return row ? validateSettings(JSON.parse(row.value)) : { ...defaultSettings }
@@ -53,7 +60,7 @@ export class LocalRepository implements LearningRepository {
       const previous = await this.getProgress(event.wordId)
       const now = new Date(event.occurredAt)
       const settings = await this.getSettings()
-      const stats = studyStats(await this.listPendingEvents(), now)
+      const stats = studyStats(await this.listEvents(), now)
       if (mode === 'new' && previous) throw new StudyConflictError('此词已在另一个页面完成，请重新进入学习页面以刷新任务。')
       if (mode === 'review' && (!previous || Date.parse(previous.nextReviewAt) > now.getTime())) throw new StudyConflictError('此词尚未到期或已在另一个页面完成，请重新进入复习页面。')
       if (mode === 'new' && stats.todayNew >= settings.dailyNewWords || mode === 'review' && stats.todayReviews >= settings.dailyReviewLimit) throw new StudyConflictError('今日任务已达到上限，请返回首页，或在设置中调整目标。')
@@ -66,10 +73,11 @@ export class LocalRepository implements LearningRepository {
       exportedAt: new Date().toISOString(), settings: await this.getSettings(), events: await this.db.events.toArray() }))
   }
   async clearLocalData() {
-    await this.db.transaction('rw', this.db.events, this.db.progress, this.db.meta, async () => {
+    await this.db.transaction('rw', this.db.events, this.db.progress, this.db.meta, this.db.synced, async () => {
       await this.db.events.clear()
       await this.db.progress.clear()
       await this.db.meta.clear()
+      await this.db.synced.clear()
     })
   }
   async previewImport(backup: Backup) {
@@ -88,8 +96,46 @@ export class LocalRepository implements LearningRepository {
       return merged.length - local.length
     })
   }
+  async syncCursor() { return (await this.db.meta.get('syncCursor'))?.value ?? null }
+  async applyRemoteEvents(events: LearningEvent[], cursor: string) {
+    if (!/^\d+$/.test(cursor) || !Number.isSafeInteger(Number(cursor))) throw new Error('云端同步游标无效。')
+    await this.db.transaction('rw', this.db.events, this.db.progress, this.db.meta, this.db.synced, async () => {
+      const previous = await this.syncCursor()
+      if (Number(cursor) < Number(previous ?? 0)) throw new Error('云端游标回退，未修改本机数据。')
+      const merged = mergeEvents(await this.listEvents(), events)
+      await this.db.events.bulkPut(events)
+      await this.db.progress.clear()
+      await this.db.progress.bulkPut(replayEvents(merged))
+      await this.db.synced.bulkPut(events.map(event => ({ id: event.id })))
+      await this.db.meta.put({ key: 'syncCursor', value: cursor })
+    })
+  }
+  async acknowledge(ids: string[]) {
+    await this.db.transaction('rw', this.db.events, this.db.synced, async () => {
+      for (const id of ids) if (!await this.db.events.get(id)) throw new Error('云端确认包含未知事件。')
+      await this.db.synced.bulkPut(ids.map(id => ({ id })))
+    })
+  }
+  async removeTransferredEvents(ids: string[]) {
+    await this.db.transaction('rw', this.db.events, this.db.progress, this.db.meta, this.db.synced, async () => {
+      await this.db.events.bulkDelete(ids)
+      await this.db.synced.bulkDelete(ids)
+      const remaining = await this.listEvents()
+      await this.db.progress.clear()
+      await this.db.progress.bulkPut(replayEvents(remaining))
+      if (!remaining.length) await this.db.meta.clear()
+    })
+  }
 }
 
 export const repository = new LocalRepository()
+
+const accountRepositories = new Map<string, LocalRepository>()
+export function accountRepository(environment: string, userId: string) {
+  if (!environment || typeof userId !== 'string' || !/^[\w:-]{1,160}$/.test(userId)) throw new Error('账号身份无效。')
+  const key = encodeURIComponent(environment) + ':' + encodeURIComponent(userId)
+  if (!accountRepositories.has(key)) accountRepositories.set(key, new LocalRepository(new StudyDatabase('wordsteps-account-v1:' + key)))
+  return accountRepositories.get(key)!
+}
 
 export class StudyConflictError extends Error {}

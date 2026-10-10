@@ -1,9 +1,9 @@
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 
-const roots = ['src', 'public', 'docs', 'scripts', '.github']
+const roots = ['src', 'public', 'docs', 'scripts', '.github', 'cloudfunctions']
 if (process.argv.includes('--dist')) roots.push('dist')
-const files = ['README.md', 'index.html', 'package.json', 'package-lock.json', 'vite.config.ts', '.gitignore', 'eslint.config.js', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json']
+const files = ['README.md', 'index.html', 'package.json', 'package-lock.json', 'vite.config.ts', '.gitignore', '.env.example', 'eslint.config.js', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json']
 async function collect(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name)
@@ -22,13 +22,13 @@ const checks = [
 ]
 const failures = []
 for (const file of files) {
-  if (/(^|[\\/])(?:\.local|\.git|backups|node_modules)([\\/]|$)|wordsteps-backup-.*\.json$|\.env(?:\.|$)|\.(pem|key|p12|pfx)$/i.test(file)) {
+  if (file !== '.env.example' && /(^|[\\/])(?:\.local|\.git|backups|node_modules)([\\/]|$)|wordsteps-backup-.*\.json$|\.env(?:\.|$)|\.(pem|key|p12|pfx)$/i.test(file)) {
     failures.push({ file, category: 'private or excluded file' }); continue
   }
-  if (!/\.(?:[cm]?[jt]sx?|json|md|html|css|txt|yml|yaml|ps1)$/.test(file)) continue
+  if (file !== '.env.example' && !/\.(?:[cm]?[jt]sx?|json|md|html|css|txt|yml|yaml|ps1)$/.test(file)) continue
   const text = await readFile(file, 'utf8')
   let emailText = text
-  if (file === 'package-lock.json') {
+  if (/(^|[\\/])package-lock\.json$/.test(file)) {
     const lock = JSON.parse(text)
     for (const [name, value] of Object.entries(lock.packages ?? {})) if (name.startsWith('node_modules/')) delete value.deprecated
     emailText = JSON.stringify(lock)

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { LearningEvent, StudySettings, Word, WordProgress } from '../domain/types'
+import type { LocalRepository } from '../services/storage/database'
 
 export interface StudyState {
   words: Word[]
@@ -7,6 +8,7 @@ export interface StudyState {
   events: LearningEvent[]
   settings: StudySettings
   now: Date
+  repository: LocalRepository
 }
 export const StudyContext = createContext<StudyState | null>(null)
 export function useStudy() {

@@ -18,4 +18,5 @@ export default tseslint.config(
     },
   },
   { files: ['*.js', '*.ts', 'scripts/**/*.mjs'], languageOptions: { globals: globals.node } },
+  { files: ['cloudfunctions/**/*.{cjs,js}'], languageOptions: { globals: globals.node }, rules: { '@typescript-eslint/no-require-imports': 'off' } },
 )

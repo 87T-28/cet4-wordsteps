@@ -30,6 +30,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run data:check
+      - run: npm run cloud:prepare
       - run: npm run privacy:check
       - name: Configure Pages
         if: github.event_name != 'pull_request'
@@ -38,7 +39,10 @@ jobs:
       - name: Build
         env:
           VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
-          WORDSTEPS_BUILD_VERSION: 0.2.0-${{ github.sha }}
+          WORDSTEPS_BUILD_VERSION: 0.3.0-${{ github.sha }}
+          VITE_CLOUDBASE_ENV_ID: ${{ vars.VITE_CLOUDBASE_ENV_ID }}
+          VITE_CLOUDBASE_REGION: ${{ vars.VITE_CLOUDBASE_REGION }}
+          VITE_CLOUDBASE_PUBLISHABLE_KEY: ${{ vars.VITE_CLOUDBASE_PUBLISHABLE_KEY }}
         run: npm run build
       - run: npm run pwa:check
       - run: npm run privacy:check -- --dist

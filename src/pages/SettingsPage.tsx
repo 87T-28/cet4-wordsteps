@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { PageHeading } from '../components/PageHeading'
 import { useStudy } from '../app/StudyContext'
-import { repository } from '../services/storage/database'
 import { MAX_BACKUP_BYTES, validateBackup } from '../services/storage/backup'
 import type { Backup } from '../services/storage/backup'
 import { InstallApp } from '../components/InstallApp'
 import { PrivacyNotice } from '../components/PrivacyNotice'
 import { encryptBackup, MAX_BACKUP_FILE_BYTES, readBackupFile } from '../services/storage/encryption'
+import { accountStore } from '../services/cloud/account'
 
 export function SettingsPage() {
-  const { settings, words } = useStudy()
+  const { settings, words, repository } = useStudy()
   const [dailyNewWords, setDailyNewWords] = useState(String(settings.dailyNewWords))
   const [dailyReviewLimit, setDailyReviewLimit] = useState(String(settings.dailyReviewLimit))
   const [message, setMessage] = useState('')
@@ -75,6 +75,7 @@ export function SettingsPage() {
     setBusy(true); setError(''); setMessage('')
     try {
       await repository.clearLocalData()
+      if (repository.db.name.startsWith('wordsteps-account-')) { await accountStore.logout(); return }
       setDownload(null); setPending(null); setPassword(''); setClearConfirmation(''); setHasFile(false)
       setDailyNewWords('20'); setDailyReviewLimit('50')
       if (fileInput.current) fileInput.current.value = ''
@@ -96,7 +97,7 @@ export function SettingsPage() {
     </section>
     {busy && <p role="status">正在处理…</p>}{message && <p role="status" className="success-message">{message}</p>}{error && <p role="alert" className="error-message">{error}</p>}
     <PrivacyNotice />
-    <section className="info-row"><details><summary>清除本机学习档案</summary><p>清除事件、统计、目标和随机设备标识，不会删除已下载备份。操作不能撤销，请先保存需要的备份。</p><label className="password-label">输入“清除学习记录”确认<input value={clearConfirmation} disabled={busy} onChange={event => setClearConfirmation(event.target.value)} autoComplete="off" /></label><button className="button secondary install-button" disabled={busy || clearConfirmation !== '清除学习记录'} onClick={() => void clearLocal()}>确认清除本机档案</button></details></section>
+    <section className="info-row"><details><summary>清除本机学习档案</summary><p>清除当前档案的事件、统计、目标和随机设备标识，不会删除云端或已下载备份。账号档案清除后同时退出，再登录仍可读取云端记录。操作不能撤销，请先保存需要的备份。</p><label className="password-label">输入“清除学习记录”确认<input value={clearConfirmation} disabled={busy} onChange={event => setClearConfirmation(event.target.value)} autoComplete="off" /></label><button className="button secondary install-button" disabled={busy || clearConfirmation !== '清除学习记录'} onClick={() => void clearLocal()}>确认清除本机档案</button></details></section>
     <InstallApp />
     <section className="info-row"><h2>关于 WordSteps</h2><p>v{__APP_VERSION__.split('-')[0]} · 本地离线学习版。当前浏览器的游客档案，账号同步将在 M3 接入。</p></section>
   </>

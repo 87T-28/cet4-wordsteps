@@ -1,7 +1,7 @@
 {
   "name": "cet4-wordsteps",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -15,9 +15,11 @@
     "data:check": "node scripts/validate-corpus.mjs",
     "pwa:check": "node scripts/validate-pwa.mjs",
     "preview:subpath": "node scripts/preview-subpath.mjs",
-    "privacy:check": "node scripts/privacy-check.mjs"
+    "privacy:check": "node scripts/privacy-check.mjs",
+    "cloud:prepare": "node scripts/prepare-cloud-function.mjs"
   },
   "dependencies": {
+    "@cloudbase/js-sdk": "^3.10.2",
     "@phosphor-icons/react": "^2.1.10",
     "dexie": "^4.4.6",
     "dexie-react-hooks": "^4.4.0",
@@ -26,6 +28,7 @@
     "react-router-dom": "^7.9.0"
   },
   "devDependencies": {
+    "@cloudbase/node-sdk": "^3.18.3",
     "@eslint/js": "^9.36.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",

@@ -5,6 +5,8 @@ import { navigation } from './navigation'
 import { EmptyState } from '../components/EmptyState'
 import { PwaNotice } from '../components/PwaNotice'
 import { getPwaState, subscribePwa } from '../services/pwa'
+import { accountStore } from '../services/cloud/account'
+import { SyncNotice } from '../components/SyncNotice'
 
 const HomePage = lazy(() => import('../pages/HomePage').then(module => ({ default: module.HomePage })))
 const LearnPage = lazy(() => import('../pages/LearnPage').then(module => ({ default: module.LearnPage })))
@@ -19,6 +21,7 @@ export function App() {
   const mainRef = useRef<HTMLElement>(null)
   const previousPath = useRef(location.pathname)
   const pwa = useSyncExternalStore(subscribePwa, getPwaState)
+  const account = useSyncExternalStore(accountStore.subscribe, accountStore.snapshot)
   const reloadForNavigation = pwa.reloadNeeded && pwa.reloadFromPath !== location.pathname
 
   useEffect(() => {
@@ -41,12 +44,13 @@ export function App() {
         {navigation.map(({ path, label, icon: Icon }) => <NavLink key={path} to={path} end className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}><Icon size={21} /><span>{label}</span></NavLink>)}
       </nav>
       <div className="sidebar-note"><Plant size={26} /><p>让进步，<br />在每一天发生。</p><span>学一点，记久一点。</span></div>
-      <Link to="/account" className="guest-profile"><span className="avatar">访</span><span>游客模式<small>账号同步尚未接入</small></span><ArrowUpRight size={18} /></Link>
+      <Link to="/account" className="guest-profile"><span className="avatar">{account.user ? '账' : '访'}</span><span>{account.user ? '账号档案' : '游客模式'}<small>{account.user ? '管理登录与同步' : account.configured ? '可登录同步记录' : '云同步暂未开通'}</small></span><ArrowUpRight size={18} /></Link>
     </aside>
     <div className="workspace">
       <header className="topbar"><span>四级词汇学习</span><span className="stage-label">v{__APP_VERSION__.split('-')[0]} · 本地学习</span></header>
       <main id="main-content" className="main-content" ref={mainRef} tabIndex={-1}>
         <PwaNotice />
+        <SyncNotice />
         {reloadForNavigation ? <p role="status">正在载入新版，已保存的学习记录会保留…</p> : <Suspense fallback={<p role="status">正在打开页面…</p>}><Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/learn" element={<LearnPage />} />

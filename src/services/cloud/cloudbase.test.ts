@@ -1,0 +1,78 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createCloudGateway, forgetCloudSession } from './cloudbase'
+
+const mocks = vi.hoisted(() => ({ init: vi.fn(), auth: { signInWithOtp: vi.fn(), setSession: vi.fn(), signOut: vi.fn(), getSession: vi.fn(), onAuthStateChange: vi.fn(), getVerification: vi.fn(), verify: vi.fn(), sudo: vi.fn(), deleteMe: vi.fn() }, call: vi.fn() }))
+vi.mock('@cloudbase/js-sdk', () => ({ default: { init: mocks.init } }))
+const email = ['learner', 'example.invalid'].join('@')
+const config = { envId: 'sdk-test-env', region: 'ap-shanghai', publishableKey: 'public-test-placeholder', functionName: 'wordsteps-sync' }
+const session = { access_token: 'test-access', refresh_token: 'test-refresh', user: { id: 'user-a', email } }
+beforeEach(() => {
+  vi.clearAllMocks(); sessionStorage.clear()
+  mocks.init.mockReturnValue({ auth: () => mocks.auth, callFunction: mocks.call })
+  mocks.auth.onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } })
+  mocks.auth.setSession.mockResolvedValue({ data: { session }, error: null })
+  mocks.auth.getSession.mockResolvedValue({ data: { session }, error: null })
+  mocks.auth.signOut.mockResolvedValue(undefined)
+  mocks.call.mockResolvedValue({ result: { ok: true, data: { userId: 'user-a' } } })
+})
+afterEach(() => { vi.unstubAllGlobals() })
+describe('CloudBase v3 adapter', () => {
+  it('uses the SDK-bound OTP callback rather than discarding its message ID', async () => {
+    const verifier = vi.fn(async () => ({ data: { session }, error: null }))
+    mocks.auth.signInWithOtp.mockResolvedValue({ data: { verifyOtp: verifier }, error: null })
+    const gateway = await createCloudGateway(config)
+    await gateway.requestEmailCode(email)
+    expect(await gateway.verifyEmailCode(email, '123456')).toEqual({ id: 'user-a', email })
+    expect(verifier).toHaveBeenCalledWith({ token: '123456' })
+    expect(mocks.init.mock.calls[0][0]).toMatchObject({ accessKey: config.publishableKey, persistence: 'none', debug: false })
+    expect(await gateway.identify()).toBe('user-a')
+  })
+  it('rejects verification for an edited email', async () => {
+    const verifier = vi.fn()
+    mocks.auth.signInWithOtp.mockResolvedValue({ data: { verifyOtp: verifier } })
+    const gateway = await createCloudGateway(config)
+    await gateway.requestEmailCode(email)
+    await expect(gateway.verifyEmailCode(['other', 'example.invalid'].join('@'), '123456')).rejects.toThrow(/当前邮箱/)
+    expect(verifier).not.toHaveBeenCalled()
+  })
+  it('rejects a session with no user ID rather than creating an unnamed account cache', async () => {
+    const verifier = vi.fn(async () => ({ data: { session: { ...session, user: { email } } } }))
+    mocks.auth.signInWithOtp.mockResolvedValue({ data: { verifyOtp: verifier } })
+    const gateway = await createCloudGateway(config)
+    await gateway.requestEmailCode(email)
+    await expect(gateway.verifyEmailCode(email, '123456')).rejects.toThrow(/会话无效/)
+    expect(sessionStorage.getItem('wordsteps:cloud-session:' + config.envId)).toBeNull()
+  })
+  it('includes the expected principal in every event request', async () => {
+    const gateway = await createCloudGateway(config)
+    await gateway.pushEvents('user-a', [])
+    expect(mocks.call.mock.calls[0][0]).toMatchObject({ name: config.functionName, data: { action: 'push', expectedUserId: 'user-a', events: [] } })
+  })
+  it('clears only its own session even if remote logout fails', async () => {
+    sessionStorage.setItem('unrelated-site-data', 'keep')
+    sessionStorage.setItem('wordsteps:cloud-session:' + config.envId, 'old')
+    mocks.auth.signOut.mockRejectedValue(new Error('offline'))
+    const gateway = await createCloudGateway(config)
+    await gateway.signOut()
+    expect(sessionStorage.getItem('wordsteps:cloud-session:' + config.envId)).toBeNull()
+    expect(sessionStorage.getItem('unrelated-site-data')).toBe('keep')
+  })
+  it('restores a previously verified offline session without a network login', async () => {
+    vi.stubGlobal('navigator', { onLine: false })
+    sessionStorage.setItem('wordsteps:cloud-session:' + config.envId, JSON.stringify({ ...session, verified: true }))
+    const gateway = await createCloudGateway(config)
+    expect(await gateway.restoreSession()).toEqual({ id: 'user-a', email })
+    expect(mocks.auth.setSession).not.toHaveBeenCalled()
+    expect(mocks.call).not.toHaveBeenCalled()
+    forgetCloudSession(config.envId)
+  })
+  it('requires a fresh verification and sudo token before deleting identity', async () => {
+    const gateway = await createCloudGateway(config)
+    await expect(gateway.deleteIdentity()).rejects.toThrow(/新的邮箱验证码/)
+    mocks.auth.getVerification.mockResolvedValue({ verification_id: 'verification-id' })
+    mocks.auth.verify.mockResolvedValue({ verification_token: 'test-verification-token' })
+    mocks.auth.sudo.mockResolvedValue({ sudo_token: 'test-sudo-token' })
+    await gateway.requestDeletionCode(); await gateway.authorizeDeletion('654321'); await gateway.deleteIdentity()
+    expect(mocks.auth.deleteMe).toHaveBeenCalledWith({ sudo_token: 'test-sudo-token' })
+  })
+})

@@ -3,12 +3,25 @@ import { LocalRepository, StudyDatabase } from './database'
 import type { LearningEvent } from '../../domain/types'
 import { validateBackup } from './backup'
 import { replayEvents } from '../review/scheduler'
+import Dexie from 'dexie'
 
 let repo: LocalRepository
 const event: LearningEvent = { id: 'one', wordId: 'ecdict:achieve', deviceId: 'test', occurredAt: '2026-10-01T00:00:00.000Z', rating: 'good', objectiveCorrect: true, kind: 'new', schemaVersion: 1 }
 beforeEach(() => { repo = new LocalRepository(new StudyDatabase('test-' + crypto.randomUUID())) })
 afterEach(async () => { await repo.db.delete() })
 describe('transactional learning repository', () => {
+  it('migrates M1 guest databases without dropping learning records', async () => {
+    const name = 'migration-' + crypto.randomUUID()
+    const old = new Dexie(name)
+    old.version(1).stores({ events: 'id, wordId, occurredAt, kind', progress: 'wordId, nextReviewAt', meta: 'key' })
+    await old.table('events').add(event); old.close()
+    const upgraded = new LocalRepository(new StudyDatabase(name))
+    try {
+      expect(await upgraded.listEvents()).toEqual([event])
+      expect(await upgraded.listPendingEvents()).toEqual([event])
+      expect(await upgraded.db.synced.toArray()).toEqual([])
+    } finally { await upgraded.db.delete() }
+  })
   it('clears all local records, settings and device identity only when explicitly called', async () => {
     await repo.appendEvent(event)
     const device = await repo.deviceId()

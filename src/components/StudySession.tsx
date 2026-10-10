@@ -4,12 +4,13 @@ import { CheckCircle, Eye, SpeakerHigh, ArrowRight } from '@phosphor-icons/react
 import { useStudy } from '../app/StudyContext'
 import { studyQueue } from '../domain/study'
 import type { LearningEvent, ReviewRating } from '../domain/types'
-import { repository, StudyConflictError } from '../services/storage/database'
+import { StudyConflictError } from '../services/storage/database'
 import { speakWord } from '../services/speech'
 import { EmptyState } from './EmptyState'
 
 export function StudySession({ mode }: { mode: 'new' | 'review' }) {
   const study = useStudy()
+  const repository = study.repository
   const [queue] = useState(() => studyQueue(study.words, study.progress, study.events, study.settings, mode, study.now))
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
