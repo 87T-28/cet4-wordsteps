@@ -8,7 +8,11 @@
 
 源码包与云函数包通过明确文件清单重新生成，不包含本机运行材料、凭据或学习备份。云函数上传包根层含 index.js、index.cjs、service.cjs、word-ids.json、package.json 和 package-lock.json，需由 CloudBase 在线安装依赖。
 
-发布目标仍为下方已有 GitHub Pages 地址，不自动创建云环境。部署结果待本轮实际工作流完成后补充。
+已发布至 https://87t-28.github.io/cet4-wordsteps/ 。应用提交：`052579d6dad1b0f741a1360e07d00efff3a5ea71`；工作流：https://github.com/87T-28/cet4-wordsteps/actions/runs/38068829157 ，最终状态 success。
+
+实际站点返回 HTTP 200。现有离线缓存先显示 0.2.0 的更新入口，通过“更新并刷新”加载 0.3.0。390px 视口的账号页与学习词卡可用，无整页横向溢出；账号页显示“邮箱登录暂未开通”，无邮箱输入。请求只包含网站自身来源，CSP 仍限制同源连接，no-referrer 有效，没有页面脚本异常。此次线上检查未向用户的游客档案写入测试评分；评分和离线恢复已在独立本地测试来源验证。
+
+发布不自动创建或部署 CloudBase 环境。真实登录和同步仍待免费环境配置与验收。
 
 ## 0.2.0：M2 已上线
 
