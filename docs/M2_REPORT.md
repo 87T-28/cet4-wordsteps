@@ -1,6 +1,6 @@
 # M2 离线、移动体验与免费部署准备报告
 
-后续发布前隐私加固详见 `PRIVACY_REVIEW.md`；当前发布因用户要求先审查隐私而暂停。
+后续已完成隐私加固并上线，详见 `PRIVACY_REVIEW.md` 与 `RELEASE_REPORT.md`。
 
 日期：2026-10-10（Asia/Shanghai）。版本：0.2.0。
 
