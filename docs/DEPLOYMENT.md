@@ -2,11 +2,15 @@
 
 ## 当前状态
 
-用户要求先解决隐私问题，现已完成加固并暂停公开发布，详见 `PRIVACY_REVIEW.md`。公开发布会关联公开用户名，提交不得使用登录邮箱作为作者邮箱。
+隐私加固完成后，用户继续授权发布。网站已通过 GitHub Pages 发布，使用 noreply 提交作者地址，详见 `PRIVACY_REVIEW.md` 和 `RELEASE_REPORT.md`。
 
-本地源码与 `.github/workflows/pages.yml` 已准备。当前 Git 仓库没有远程地址，GitHub 连接返回的可访问仓库列表为空。尚未选择、新建或推送远程仓库，没有已验证的线上 URL。
+线上地址：https://87t-28.github.io/cet4-wordsteps/
 
-用户需明确选择公开仓库（新建 `cet4-wordsteps` 或提供现有仓库地址）。仓库选择问题已发出；预选项不等同于确认。当前阶段不启用账号服务。
+源码仓库：https://github.com/87T-28/cet4-wordsteps
+
+本地 main 跟踪 origin/main；仓库 Pages 来源为 GitHub Actions，后续推送会自动运行校验并部署。
+
+当前阶段只保存本机学习记录，未启用云账号或同步。公开用户名关联及平台访问日志仍适用隐私报告中的说明。
 
 ## 仓库和 Pages 配置
 

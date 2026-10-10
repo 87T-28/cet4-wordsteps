@@ -44,7 +44,7 @@ export function App() {
       <Link to="/account" className="guest-profile"><span className="avatar">访</span><span>游客模式<small>账号同步尚未接入</small></span><ArrowUpRight size={18} /></Link>
     </aside>
     <div className="workspace">
-      <header className="topbar"><span>四级词汇学习</span><span className="stage-label">v{__APP_VERSION__} · 本地学习</span></header>
+      <header className="topbar"><span>四级词汇学习</span><span className="stage-label">v{__APP_VERSION__.split('-')[0]} · 本地学习</span></header>
       <main id="main-content" className="main-content" ref={mainRef} tabIndex={-1}>
         <PwaNotice />
         {reloadForNavigation ? <p role="status">正在载入新版，已保存的学习记录会保留…</p> : <Suspense fallback={<p role="status">正在打开页面…</p>}><Routes>

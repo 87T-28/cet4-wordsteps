@@ -2,7 +2,11 @@
 
 面向个人和少量朋友的四级单词学习网站。独立源码，本地优先，逐阶段实现。
 
-**当前阶段：M2 离线与部署准备版。** 已接入 ECDICT 的 3,849 个四级标签词、IndexedDB 保存、词卡与拼写、间隔重复、统计、JSON 备份恢复和 PWA 离线缓存。GitHub Pages 工作流已配置，线上发布仍待选择仓库；账号同步留待 M3。
+**当前阶段：M2 已上线。** 已接入 ECDICT 的 3,849 个四级标签词、IndexedDB 保存、词卡与拼写、间隔重复、统计、加密备份恢复和 PWA 离线缓存。账号同步留待 M3。
+
+网站：https://87t-28.github.io/cet4-wordsteps/
+
+源码：https://github.com/87T-28/cet4-wordsteps
 
 ## 本地运行
 
@@ -77,6 +81,6 @@ scripts/        固定版本词库导入及校验脚本
 
 先阅读 [需求规格](docs/CET4_WordSteps_v1.0_SRS.md) 和 [执行计划](docs/CODEX_EXECUTION_PLAN.md)。两份文件根据用户引用的“开发思路”聊天重建，**不是聊天中 ZIP 附件的原始文件**。附件内容尚未获得，如以后提供，需要核对差异。
 
-详见 [词库来源](docs/WORD_SOURCES.md)、[M1 报告](docs/M1_REPORT.md) 和 [M2 报告](docs/M2_REPORT.md)。M2 本地验收已完成，真实 GitHub Pages 发布尚待仓库选择。发布后验证线上 URL，随后进入 M3 邮箱认证与云同步；M4 安全和恢复验收。
+详见 [词库来源](docs/WORD_SOURCES.md)、[M1 报告](docs/M1_REPORT.md)、[M2 报告](docs/M2_REPORT.md) 和 [发布记录](docs/RELEASE_REPORT.md)。M2 已发布并验证；下一阶段 M3 邮箱认证与云同步，M4 安全和恢复验收。
 
 所有本轮使用的依赖均为免费开源包；未调用付费 API、购买服务、创建云环境或发布网站。未来云环境仍受免费额度与服务规则约束。
