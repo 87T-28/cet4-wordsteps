@@ -1,0 +1,14 @@
+{
+  "source": "https://github.com/skywind3000/ECDICT",
+  "revision": "bc015ed2e24a7abef49fc6dbbb7fe32c1dadaf8b",
+  "license": "MIT",
+  "sourceFile": "ecdict.csv",
+  "sourceSha256": "1a6947e04785db63613a92e14903cdae7954f7e84860b10e68e5c7cbb3f9c3cf",
+  "outputSha256": "853a4cd1de304eb66b729b5db302d3a78f348f992002e10ad96772c3591a6b9f",
+  "selection": "exact cet4 tag",
+  "rows": 770611,
+  "tagged": 3849,
+  "count": 3849,
+  "missingPhonetic": 12,
+  "rejected": []
+}

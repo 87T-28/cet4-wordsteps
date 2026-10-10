@@ -1,0 +1,63 @@
+name: Validate and deploy WordSteps
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run data:check
+      - run: npm run privacy:check
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        id: pages
+        uses: actions/configure-pages@v5
+      - name: Build
+        env:
+          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+          WORDSTEPS_BUILD_VERSION: 0.2.0-${{ github.sha }}
+        run: npm run build
+      - run: npm run pwa:check
+      - run: npm run privacy:check -- --dist
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
