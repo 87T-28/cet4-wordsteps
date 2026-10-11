@@ -7,6 +7,17 @@ type Session = { access_token: string; refresh_token: string; user: { id: string
 const sessionKey = (env: string) => 'wordsteps:cloud-session:' + env
 export function forgetCloudSession(env: string) { sessionStorage.removeItem(sessionKey(env)) }
 
+function authFailure(error: unknown, message: string) {
+  const source = error && typeof error === 'object' ? error as { code?: unknown; error_code?: unknown; errCode?: unknown } : {}
+  const candidate = source.code ?? source.error_code ?? source.errCode
+  const code = typeof candidate === 'string' && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(candidate) ? candidate : 'UNKNOWN_AUTH_ERROR'
+  // Never expose SDK error messages: they can contain addresses, tokens, or SMTP details.
+  const explanation = code.toLowerCase() === 'unreachable'
+    ? '验证码未发送，认证服务暂时无法连接。请检查网络并刷新页面后重试。'
+    : message
+  return new Error(`${explanation}（认证错误代码：${code}）`)
+}
+
 function sessionFrom(result: AuthResult): Session | null {
   if (result.error) throw new Error('认证服务暂时不可用，请检查配置或重新登录。')
   const session = result.data?.session as Session | undefined
@@ -57,8 +68,11 @@ export async function createCloudGateway(config: CloudConfig): Promise<CloudGate
     async requestEmailCode(email) {
       verifier = null
       pendingEmail = email.trim().toLowerCase()
-      const response: AuthResult = await auth.signInWithOtp({ email: pendingEmail })
-      if (response.error || !response.data?.verifyOtp) throw new Error('验证码未发送。请检查环境是否启用邮箱注册并登录、允许此站点，或稍后重试。')
+      let response: AuthResult
+      try { response = await auth.signInWithOtp({ email: pendingEmail }) }
+      catch (error) { throw authFailure(error, '验证码未发送，请稍后重试。') }
+      if (response.error) throw authFailure(response.error, '验证码未发送。请检查邮箱发件人配置及此站点的访问权限。')
+      if (!response.data?.verifyOtp) throw new Error('验证码发送响应不完整，请稍后重试。')
       verifier = response.data.verifyOtp
     },
     async verifyEmailCode(email, code) {

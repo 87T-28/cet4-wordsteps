@@ -8,7 +8,11 @@
 
 已通过静态上传一致性校验、移动学习/账号页、Service Worker 子目录作用域和邮箱表单检查。源码与独立构建隐私检查、生产构建、PWA、类型/ESLint、95 项测试通过；新增密钥角色和激活校验、隔离开发云配置的测试环境、PWA 更新竞态回归。云端无用户上下文调用返回 UNAUTHENTICATED。没有代用户发送验证码或上传真实学习档案。
 
-源码提交与 GitHub Pages 校验工作流结果在本轮完成后补充。
+上述后台与激活校验源码提交：`c83af5a0f6283ae4beb7a235d7c50950c04a9ac2`；GitHub Actions：https://github.com/87T-28/cet4-wordsteps/actions/runs/38109499655 ，最终状态 success。
+
+2026-10-11 补充修复邮箱发送 unreachable：生产浏览器复现本环境认证网关被 connect-src 拦截，构建策略增加精确网关来源，关闭云功能时保持仅同源连接。安全错误代码诊断不输出原始 SDK 消息。98 项测试、类型检查、ESLint、两模式生产 CSP 对照、云构建/PWA/隐私检查通过；CloudBase wordsteps 子目录上传 28/28 文件且一致性校验通过。真实发信与登录等待本人重试，M3 尚未全部验收。
+
+线上通过正常 PWA 更新加载修复；同一 SDK 的无收件人请求成功抵达认证网关，返回 HTTP 400 / invalid_argument，无 connect-src 拦截和网络失败。此验证仅证明请求连通，不代表真实邮件发送和账号同步已经通过。
 
 ## 0.3.0：M3 代码准备
 

@@ -10,7 +10,11 @@ export default defineConfig(({ mode }) => {
   const cloudRegion = env.VITE_CLOUDBASE_REGION?.trim() || 'ap-shanghai'
   const cloudKey = env.VITE_CLOUDBASE_PUBLISHABLE_KEY?.trim()
   if (cloudEnv && cloudKey) assertPublicCloudConfig({ envId: cloudEnv, region: cloudRegion, publishableKey: cloudKey })
-  const cloudOrigin = cloudEnv && cloudKey ? ` https://${cloudEnv}.${cloudRegion}.tcb-api.tencentcloudapi.com` : ''
+  // The v3 SDK routes authentication through the environment gateway. Functions
+  // can also use the regional API; allow only these two exact environment origins.
+  const cloudOrigin = env.VITE_CLOUDBASE_ENABLED === 'true' && cloudEnv && cloudKey
+    ? ` https://${cloudEnv}.${cloudRegion}.tcb-api.tencentcloudapi.com https://${cloudEnv}.api.tcloudbasegateway.com`
+    : ''
 
   return {
     plugins: [react(), {

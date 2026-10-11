@@ -32,7 +32,9 @@ VITE_CLOUDBASE_PUBLISHABLE_KEY
 VITE_CLOUDBASE_ENABLED
 ```
 
-后台和发件人设置完成后，把 VITE_CLOUDBASE_ENABLED 设为 true，再构建/部署。仅提供三项公开配置不自动开通登录。构建和网页共享公开密钥声明校验，拒绝服务端密钥、个人登录令牌、环境/地域不符和过期值；由平台验证签名。CSP 只额外允许本环境的 API 来源。未激活时不启动云 SDK，也不提供邮箱输入。
+后台和发件人设置完成后，把 VITE_CLOUDBASE_ENABLED 设为 true，再构建/部署。仅提供三项公开配置不自动开通登录。构建和网页共享公开密钥声明校验，拒绝服务端密钥、个人登录令牌、环境/地域不符和过期值；由平台验证签名。启用时 CSP 只额外允许本环境的区域 API（环境 ID.地域.tcb-api.tencentcloudapi.com）和认证网关（环境 ID.api.tcloudbasegateway.com）两个精确来源。未激活时连接仅限同源，不启动云 SDK，也不提供邮箱输入。
+
+遇到 unreachable 时先检查网络、生产页 CSP 及浏览器的 securitypolicyviolation 事件。SDK 3.10.2 的验证码请求实际使用上述认证网关；只放行区域 API 会被浏览器拦截。该错误本身不能证明发件人或 SMTP 配置有误。刷新或点击“更新并刷新”加载新版后，再由本人发送验证码；仅报告安全错误代码，不发送密码、SMTP 授权码或验证码。
 
 默认域名使用 `/wordsteps/` 子目录，构建时设置 VITE_BASE_PATH=/wordsteps/，使用 hosting deploy 上传 dist 到 wordsteps，保留平台已有的 __auth 和 cloud-admin 文件，禁止 prune 整个托管空间。Service Worker 仅管理 wordsteps 子目录。首次测试域名提醒由平台显示；确认后若回到首页，点“账号”。通过加密备份迁移旧地址的本机记录。
 
