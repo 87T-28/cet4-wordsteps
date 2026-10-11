@@ -10,6 +10,8 @@
 
 现有 baas_trial 环境内云函数部署完成，读取为 Active 且 WORDSTEPS_ENV_ID 匹配；云前端 28/28 文件上传及一致性校验通过。Tabbit 经正常 PWA 提示更新到 0.3.4，账号路径保留，无整页横向溢出。本人在 Edge 的刷新后保持登录与邮箱验证等待反馈，不把未登录浏览器的更新检查算作真实账号恢复通过。
 
+源码提交：`c3445995acc4aa1dd6f786cbda0bb480af2710f4`；GitHub Actions：https://github.com/87T-28/cet4-wordsteps/actions/runs/38134308590 ，构建与部署最终状态 success。GitHub 入口继续本地模式。源码 ZIP 含 111 个白名单文件，云函数 ZIP 含 7 个运行文件，均不含本机凭据或真实学习记录。
+
 ## 0.3.3：明确注销验证收件人
 
 2026-10-11。用户反馈 DELETE_SEND.failed_precondition；发送请求此前只有 CUR_USER 目标与用途，没有邮箱。按官方验证码与 sudo 文档、SDK 3.10.2 核对请求契约，改由服务端认证资料取得邮箱、校验 UID 一致后，以 USER 目标明确发送重新认证验证码。忽略客户端邮箱；认证资料缺少有效邮箱时拒绝发送。平台 sudo 成功后才签发删除许可，最终文字确认仍独立于验证。
