@@ -1,6 +1,7 @@
 import type { CloudConfig } from './config'
 import type { CloudGateway } from './contracts'
 import type { LearningEvent } from '../../domain/types'
+import { CloudRequestError, safeErrorCode } from './errors'
 
 type AuthResult = { data?: { user?: unknown; session?: unknown; verifyOtp?: ((params: { token: string }) => Promise<AuthResult>) | null }; error?: unknown }
 type Session = { access_token: string; refresh_token: string; user: { id: string; email: string } }
@@ -57,11 +58,13 @@ export async function createCloudGateway(config: CloudConfig): Promise<CloudGate
         await retain(await auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token }))
       }
     }
-    const response = await app.callFunction({ name: config.functionName, data: { action, expectedUserId: userId, ...data }, parse: true })
+    let response
+    try { response = await app.callFunction({ name: config.functionName, data: { action, expectedUserId: userId, ...data }, parse: true }) }
+    catch (error) { throw new CloudRequestError(safeErrorCode(error, 'REMOTE_ERROR'), '云服务请求失败，本机记录仍保留。') }
     let value: unknown = response.result
     if (typeof value === 'string') value = JSON.parse(value)
-    const envelope = value as { ok?: boolean; data?: T; code?: string }
-    if (!envelope?.ok || !envelope.data) throw new Error(envelope?.code === 'IDENTITY_MISMATCH' ? '账号身份已变化，请重新登录。' : envelope?.code === 'ACCOUNT_DELETING' ? '账号正在注销，请继续完成注销。' : '云同步服务未就绪或权限校验失败，本机记录不会被覆盖。')
+    const envelope = value as { ok?: boolean; data?: T; code?: string; diagnosticCode?: string }
+    if (!envelope?.ok || !envelope.data) throw new CloudRequestError(safeErrorCode({ code: envelope?.code === 'INTERNAL' ? envelope.diagnosticCode ?? envelope.code : envelope?.code }, 'INVALID_RESPONSE'), envelope?.code === 'IDENTITY_MISMATCH' ? '账号身份已变化，请重新登录。' : envelope?.code === 'ACCOUNT_DELETING' ? '账号正在注销，请继续完成注销。' : '云同步服务未就绪或权限校验失败，本机记录不会被覆盖。')
     return envelope.data
   }
   return {

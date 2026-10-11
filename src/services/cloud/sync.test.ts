@@ -3,6 +3,7 @@ import { LocalRepository, StudyDatabase } from '../storage/database'
 import { SyncEngine, transferGuest } from './sync'
 import type { CloudGateway } from './contracts'
 import type { LearningEvent } from '../../domain/types'
+import { CloudRequestError } from './errors'
 
 const databases: StudyDatabase[] = []
 function local() { const db = new StudyDatabase('sync-test-' + crypto.randomUUID()); databases.push(db); return new LocalRepository(db) }
@@ -40,7 +41,7 @@ describe('incremental event sync', () => {
     const original = gateway.pushEvents
     gateway.pushEvents = vi.fn().mockImplementationOnce(async (userId, batch) => { await original(userId, batch); throw new Error('connection lost') }).mockImplementation(original)
     const sync = new SyncEngine(gateway, a, 'user-a', new Set([wordId]))
-    await expect(sync.sync()).rejects.toThrow('connection lost')
+    await expect(sync.sync()).rejects.toMatchObject({ diagnosticCode: 'PUSH.LOCAL_ERROR' })
     expect(await a.listPendingEvents()).toHaveLength(1)
     await sync.sync()
     expect(events.size).toBe(1)
@@ -50,7 +51,7 @@ describe('incremental event sync', () => {
     const a = local(), { gateway } = cloud()
     await a.appendEvent(event)
     gateway.identify = vi.fn(async () => 'user-b')
-    await expect(new SyncEngine(gateway, a, 'user-a', new Set([wordId])).sync()).rejects.toThrow(/身份/)
+    await expect(new SyncEngine(gateway, a, 'user-a', new Set([wordId])).sync()).rejects.toMatchObject({ diagnosticCode: 'IDENTIFY.LOCAL_ERROR' })
     expect(gateway.pushEvents).not.toHaveBeenCalled()
     expect(await a.listPendingEvents()).toHaveLength(1)
   })
@@ -60,6 +61,29 @@ describe('incremental event sync', () => {
     await expect(new SyncEngine(gateway, a, 'user-a', new Set([wordId])).sync()).rejects.toThrow()
     expect(await a.syncCursor()).toBeNull()
     expect(await a.listEvents()).toHaveLength(0)
+  })
+  it('reports a safe upload code and retains the pending event', async () => {
+    const a = local(), { gateway } = cloud()
+    await a.appendEvent(event)
+    gateway.pushEvents = vi.fn(async () => { throw new CloudRequestError('EVENT_CONFLICT', 'private fixture') })
+    const failure = await new SyncEngine(gateway, a, 'user-a', new Set([wordId])).sync().catch(error => error)
+    expect(failure.diagnosticCode).toBe('PUSH.EVENT_CONFLICT')
+    expect(failure.message).not.toContain('private fixture')
+    expect(await a.listPendingEvents()).toHaveLength(1)
+  })
+  it('distinguishes failed local acknowledgement after a successful cloud write', async () => {
+    const a = local(), { gateway, events } = cloud()
+    await a.appendEvent(event)
+    vi.spyOn(a, 'acknowledge').mockRejectedValueOnce({ code: 'PRIVATE@EXAMPLE', message: 'private fixture' })
+    const sync = new SyncEngine(gateway, a, 'user-a', new Set([wordId]))
+    const failure = await sync.sync().catch(error => error)
+    expect(failure.diagnosticCode).toBe('ACKNOWLEDGE.LOCAL_ERROR')
+    expect(failure.message).not.toContain('private fixture')
+    expect(events.size).toBe(1)
+    expect(await a.listPendingEvents()).toHaveLength(1)
+    await sync.sync()
+    expect(events.size).toBe(1)
+    expect(await a.listPendingEvents()).toHaveLength(0)
   })
   it('does not acknowledge a stopped in-flight session', async () => {
     const a = local(), { gateway } = cloud()

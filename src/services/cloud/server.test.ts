@@ -50,6 +50,13 @@ describe('server-authorized learning events', () => {
     expect(store.metas.size).toBe(0)
     expect(store.events.size).toBe(0)
   })
+  it('returns only a narrow SDK diagnostic when a storage request fails', async () => {
+    const { handle, store } = setup()
+    store.getMeta = async () => { throw { code: 'DATABASE_PERMISSION_DENIED', message: 'private-storage-fixture' } }
+    expect(await handle({ action: 'pull', expectedUserId: a.uid }, a)).toEqual({ ok: false, code: 'INTERNAL', diagnosticCode: 'DATABASE_PERMISSION_DENIED' })
+    store.getMeta = async () => { throw { code: 'private-storage-fixture', message: 'private-storage-fixture' } }
+    expect(await handle({ action: 'pull', expectedUserId: a.uid }, a)).toEqual({ ok: false, code: 'INTERNAL', diagnosticCode: 'UNEXPECTED_ERROR' })
+  })
   it('deduplicates event IDs per user without changing sequence numbers', async () => {
     const { handle, store } = setup()
     await handle(push([event]), a); await handle(push([event]), a); await handle(push([event], b), b)

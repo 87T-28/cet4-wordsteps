@@ -7,6 +7,7 @@ import type { CloudConfig } from './config'
 import { cloudConfig } from './config'
 import { createCloudGateway, forgetCloudSession } from './cloudbase'
 import { SyncEngine, SyncStoppedError, transferGuest } from './sync'
+import { SyncFailure } from './errors'
 
 export interface AccountState {
   user: AuthenticatedUser | null
@@ -120,10 +121,10 @@ export class AccountStore {
       this.patch({ guestCount: guestBackup.events.length, accountCount, mergeAdded: preview.added, mergeAvailable: true,
         phase: prompt && guestBackup.events.length ? 'merge' : 'ready', lastSync: new Date().toISOString() })
       if (this.state.phase === 'ready') this.watch()
-    } catch {
+    } catch (error) {
       if (generation === this.generation) {
         if (!prompt) { this.patch({ phase: 'ready', error: '云端暂时不可用，继续使用此账号的本机缓存，联网后重试。' }); this.watch() }
-        else this.patch({ phase: 'merge', error: '云端记录尚未读取，暂时不能合并游客记录。请检查函数部署和数据库权限后重试。' })
+        else this.patch({ phase: 'merge', error: '云端记录尚未读取，暂时不能合并游客记录。请稍后重试。' + (error instanceof SyncFailure ? `（同步错误代码：${error.diagnosticCode}）` : '') })
       }
     }
     finally { if (generation === this.generation) this.patch({ syncing: false }) }
@@ -166,7 +167,7 @@ export class AccountStore {
       const pending = (await local.listPendingEvents()).length
       if (generation === this.generation) this.patch({ lastSync: new Date().toISOString(), pending })
     }
-    catch (error) { if (generation === this.generation && !(error instanceof SyncStoppedError)) this.patch({ error: '同步未完成，记录已保存在本机。稍后重试或导出备份。' }) }
+    catch (error) { if (generation === this.generation && !(error instanceof SyncStoppedError)) this.patch({ error: '同步未完成，记录已保存在本机。稍后重试或导出备份。' + (error instanceof SyncFailure ? `（同步错误代码：${error.diagnosticCode}）` : '') }) }
     finally { if (generation === this.generation) this.patch({ syncing: false }) }
   }
   stop() {

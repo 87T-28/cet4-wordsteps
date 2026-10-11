@@ -74,6 +74,15 @@ describe('CloudBase v3 adapter', () => {
     await gateway.pushEvents('user-a', [])
     expect(mocks.call.mock.calls[0][0]).toMatchObject({ name: config.functionName, data: { action: 'push', expectedUserId: 'user-a', events: [] } })
   })
+  it('preserves bounded function error categories without private SDK messages', async () => {
+    mocks.call.mockRejectedValueOnce({ code: 'EXCEED_AUTHORITY', message: email })
+    const gateway = await createCloudGateway(config)
+    const failure = await gateway.pullEvents('user-a', null).catch(error => error)
+    expect(failure.code).toBe('EXCEED_AUTHORITY')
+    expect(failure.message).not.toContain(email)
+    mocks.call.mockResolvedValueOnce({ result: { ok: false, code: 'INTERNAL', diagnosticCode: 'DATABASE_TRANSACTION_CONFLICT' } })
+    await expect(gateway.pushEvents('user-a', [])).rejects.toMatchObject({ code: 'DATABASE_TRANSACTION_CONFLICT' })
+  })
   it('clears only its own session even if remote logout fails', async () => {
     sessionStorage.setItem('unrelated-site-data', 'keep')
     sessionStorage.setItem('wordsteps:cloud-session:' + config.envId, 'old')

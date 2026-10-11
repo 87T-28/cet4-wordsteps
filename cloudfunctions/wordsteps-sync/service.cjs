@@ -59,6 +59,12 @@ exports.createSyncService = function createSyncService(store, validIds, clock = 
         return { ok: true, data: { userId: uid, hasMore: removed === 100 } }
       }
       fail('INVALID_ACTION')
-    } catch (error) { return { ok: false, code: error.safeCode || 'INTERNAL' } }
+    } catch (error) {
+      if (error.safeCode) return { ok: false, code: error.safeCode }
+      // Preserve a narrow SDK/native error category, never database messages or data.
+      const diagnosticCode = typeof error.code === 'string' && /^DATABASE_[A-Z0-9_]{1,40}$/.test(error.code)
+        ? error.code : error instanceof TypeError ? 'TYPE_ERROR' : 'UNEXPECTED_ERROR'
+      return { ok: false, code: 'INTERNAL', diagnosticCode }
+    }
   }
 }
