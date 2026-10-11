@@ -34,7 +34,9 @@ exports.createDeletionActions = function (store, provider, clock) {
           deletionChallenge: { ticketHash, sentAt: now, expiresAt: now + TTL, attempts: 0, verificationId: '' } }))
       })
       const verificationId = await provider.sendVerification(profile.email, accessToken)
-      if (typeof verificationId !== 'string' || !verificationId || verificationId.length > 512) fail('DELETE_CHALLENGE_UNAVAILABLE')
+      // CloudBase verification IDs are opaque tokens, not short database IDs.
+      if (typeof verificationId !== 'string' || !verificationId) fail('DELETE_CHALLENGE_MISSING')
+      if (verificationId.length > 8192) fail('DELETE_CHALLENGE_OVERSIZED')
       await store.transaction(uid, async tx => {
         const meta = await tx.getMeta()
         if (!tokenMatches(ticket, meta?.deletionChallenge?.ticketHash)) fail('DELETION_VERIFICATION_REQUIRED')

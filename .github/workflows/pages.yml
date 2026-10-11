@@ -39,7 +39,7 @@ jobs:
       - name: Build
         env:
           VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
-          WORDSTEPS_BUILD_VERSION: 0.3.3-${{ github.sha }}
+          WORDSTEPS_BUILD_VERSION: 0.3.4-${{ github.sha }}
           VITE_CLOUDBASE_ENV_ID: ${{ vars.VITE_CLOUDBASE_ENV_ID }}
           VITE_CLOUDBASE_REGION: ${{ vars.VITE_CLOUDBASE_REGION }}
           VITE_CLOUDBASE_PUBLISHABLE_KEY: ${{ vars.VITE_CLOUDBASE_PUBLISHABLE_KEY }}

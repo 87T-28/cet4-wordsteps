@@ -231,4 +231,25 @@ describe('server-authorized learning events', () => {
     expect(store.metas.get(a.uid)?.deletionGrant).toBeFalsy()
     expect(store.metas.get(a.uid)?.deleting).not.toBe(true)
   })
+  it('accepts an opaque verification token longer than 512 characters without truncating it', async () => {
+    const { provider, request, authorize, store } = deletionSetup()
+    const verificationId = 'provider-verification-' + 'x'.repeat(900)
+    provider.sendVerification.mockResolvedValue(verificationId)
+    const requested = await request()
+    expect(requested.ok).toBe(true)
+    const authorized = await authorize(requested.data?.challenge)
+    expect(authorized.ok).toBe(true)
+    expect(provider.verify).toHaveBeenCalledWith(verificationId, '654321')
+    expect(store.metas.get(a.uid)?.deleting).not.toBe(true)
+  })
+  it('rejects missing or oversized verification IDs without allowing deletion', async () => {
+    for (const [id, code] of [['', 'DELETE_CHALLENGE_MISSING'], ['x'.repeat(8193), 'DELETE_CHALLENGE_OVERSIZED']]) {
+      const { provider, request, store, handle } = deletionSetup()
+      provider.sendVerification.mockResolvedValue(id)
+      expect(await request()).toMatchObject({ code })
+      expect(store.metas.get(a.uid)?.deletionGrant).toBeFalsy()
+      expect(await handle({ action: 'erase', expectedUserId: a.uid }, a)).toMatchObject({ code: 'DELETION_VERIFICATION_REQUIRED' })
+      expect(provider.verify).not.toHaveBeenCalled()
+    }
+  })
 })
