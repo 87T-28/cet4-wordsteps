@@ -36,6 +36,7 @@ export async function createCloudGateway(config: CloudConfig): Promise<CloudGate
   let pendingEmail = ''
   let deletionVerification = ''
   let deletionToken = ''
+  let deletionGrant = ''
   let active = true
   let sessionReady = false
   async function retain(result: AuthResult) {
@@ -64,7 +65,13 @@ export async function createCloudGateway(config: CloudConfig): Promise<CloudGate
     let value: unknown = response.result
     if (typeof value === 'string') value = JSON.parse(value)
     const envelope = value as { ok?: boolean; data?: T; code?: string; diagnosticCode?: string }
-    if (!envelope?.ok || !envelope.data) throw new CloudRequestError(safeErrorCode({ code: envelope?.code === 'INTERNAL' ? envelope.diagnosticCode ?? envelope.code : envelope?.code }, 'INVALID_RESPONSE'), envelope?.code === 'IDENTITY_MISMATCH' ? '账号身份已变化，请重新登录。' : envelope?.code === 'ACCOUNT_DELETING' ? '账号正在注销，请继续完成注销。' : '云同步服务未就绪或权限校验失败，本机记录不会被覆盖。')
+    if (!envelope?.ok || !envelope.data) {
+      const code = safeErrorCode({ code: envelope?.code === 'INTERNAL' ? envelope.diagnosticCode ?? envelope.code : envelope?.code }, 'INVALID_RESPONSE')
+      const message = action.startsWith('deletion-') || action === 'erase'
+        ? `注销验证暂未完成，请稍后重试。（验证错误代码：${code}）`
+        : envelope?.code === 'IDENTITY_MISMATCH' ? '账号身份已变化，请重新登录。' : envelope?.code === 'ACCOUNT_DELETING' ? '账号正在注销，请继续完成注销。' : '云同步服务未就绪或权限校验失败，本机记录不会被覆盖。'
+      throw new CloudRequestError(code, message)
+    }
     return envelope.data
   }
   return {
@@ -100,6 +107,7 @@ export async function createCloudGateway(config: CloudConfig): Promise<CloudGate
     async signOut() {
       active = false; listener.data.subscription.unsubscribe()
       forgetCloudSession(config.envId); verifier = null; pendingEmail = ''
+      deletionVerification = ''; deletionToken = ''; deletionGrant = ''
       try { await auth.signOut() } catch { /* Local logout succeeds even when remote revocation cannot be reached. */ }
     },
     async identify() {
@@ -112,26 +120,37 @@ export async function createCloudGateway(config: CloudConfig): Promise<CloudGate
     },
     pushEvents: (userId, events: LearningEvent[]) => invoke('push', userId, { events }),
     pullEvents: (userId, cursor) => invoke('pull', userId, { cursor }),
-    eraseEvents: userId => invoke('erase', userId),
+    async eraseEvents(userId) {
+      if (!deletionGrant) throw new Error('请先用新的邮箱验证码确认注销。')
+      return invoke('erase', userId, { deletionGrant })
+    },
     async requestDeletionCode() {
       const session = sessionFrom(await auth.getSession())
       if (!session) throw new Error('请先登录。')
-      deletionToken = ''
-      const verification = await auth.getVerification({ email: session.user.email, usage: 'reauthentication' })
-      deletionVerification = verification.verification_id ?? ''
+      deletionToken = ''; deletionGrant = ''; deletionVerification = ''
+      const verification = await invoke<{ challenge: string }>('deletion-request', session.user.id, { accessToken: session.access_token })
+      deletionVerification = verification.challenge ?? ''
       if (!deletionVerification) throw new Error('注销验证码未发送。')
     },
     async authorizeDeletion(code) {
       if (!deletionVerification) throw new Error('请先获取注销验证码。')
-      const verification = await auth.verify({ verification_id: deletionVerification, verification_code: code })
-      const elevation = await auth.sudo({ verification_token: verification.verification_token })
-      deletionToken = elevation.sudo_token ?? ''
-      if (!deletionToken) throw new Error('注销验证未通过。')
+      deletionToken = ''; deletionGrant = ''
+      try {
+        const session = sessionFrom(await auth.getSession())
+        if (!session) throw new Error('请先登录。')
+        const verification = await invoke<{ grant: string; sudoToken: string }>('deletion-authorize', session.user.id, { challenge: deletionVerification, code, accessToken: session.access_token })
+        deletionToken = verification.sudoToken ?? ''
+        if (!deletionToken || !/^[a-f0-9]{64}$/.test(verification.grant)) throw new Error('注销验证未通过。')
+        deletionGrant = verification.grant
+      } catch (error) {
+        deletionToken = ''; deletionGrant = ''
+        throw authFailure(error, '注销邮箱验证未通过，请重新获取验证码后重试。')
+      }
     },
     async deleteIdentity() {
       if (!deletionToken) throw new Error('请先用新的邮箱验证码确认注销。')
       await auth.deleteMe({ sudo_token: deletionToken })
-      deletionToken = ''; active = false; listener.data.subscription.unsubscribe()
+      deletionToken = ''; deletionGrant = ''; deletionVerification = ''; active = false; listener.data.subscription.unsubscribe()
       forgetCloudSession(config.envId)
     },
   }

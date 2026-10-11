@@ -83,4 +83,27 @@ describe('account lifecycle isolation', () => {
     expect(store.snapshot().user).toBeNull()
     expect(store.snapshot().repository).toBe(guest)
   })
+  it('does not erase data when only the new email verification is completed', async () => {
+    const { store, gateway, email } = setup()
+    await store.requestCode(email, true); await store.verify(email, '123456', new Set([wordId]))
+    await store.deleteAccount()
+    expect(gateway.eraseEvents).not.toHaveBeenCalled()
+    await store.requestDeletionCode(); await store.verifyDeletionCode('654321')
+    expect(store.snapshot().deletionReady).toBe(true)
+    expect(gateway.eraseEvents).not.toHaveBeenCalled()
+    expect(gateway.deleteIdentity).not.toHaveBeenCalled()
+    await store.requestDeletionCode()
+    expect(store.snapshot().deletionReady).toBe(false)
+  })
+  it('cannot carry a late deletion verification into a logged-out session', async () => {
+    const { store, gateway, email } = setup()
+    await store.requestCode(email, true); await store.verify(email, '123456', new Set([wordId]))
+    let finish!: () => void
+    gateway.authorizeDeletion = vi.fn(() => new Promise<void>(resolve => { finish = resolve }))
+    const verifying = store.verifyDeletionCode('654321')
+    await store.logout(false); finish(); await verifying
+    expect(store.snapshot().deletionReady).toBe(false)
+    expect(gateway.eraseEvents).not.toHaveBeenCalled()
+    expect(gateway.deleteIdentity).not.toHaveBeenCalled()
+  })
 })

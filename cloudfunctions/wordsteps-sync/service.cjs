@@ -1,3 +1,4 @@
+const { createDeletionActions, metadata } = require('./deletion-auth.cjs')
 const fields = ['id', 'wordId', 'deviceId', 'occurredAt', 'kind', 'rating', 'objectiveCorrect', 'schemaVersion']
 function fail(code) { const error = new Error(code); error.safeCode = code; throw error }
 function normalize(event, validIds, now) {
@@ -14,13 +15,16 @@ function normalize(event, validIds, now) {
 }
 function sameEvent(left, right) { return fields.every(field => left[field] === right[field]) }
 
-exports.createSyncService = function createSyncService(store, validIds, clock = Date.now) {
+exports.createSyncService = function createSyncService(store, validIds, clock = Date.now, deletionProvider) {
+  const deletion = createDeletionActions(store, deletionProvider, clock)
   return async function handle(payload, principal) {
     try {
       if (!principal || typeof principal.uid !== 'string' || !/^[\w:-]{1,160}$/.test(principal.uid) || principal.uid === 'anon' || principal.isAnonymous !== false) fail('UNAUTHENTICATED')
       const uid = principal.uid
       if (payload?.action === 'identify') return { ok: true, data: { userId: uid } }
       if (!payload || payload.expectedUserId !== uid) fail('IDENTITY_MISMATCH')
+      if (payload.action === 'deletion-request') return { ok: true, data: await deletion.request(uid, payload.accessToken) }
+      if (payload.action === 'deletion-authorize') return { ok: true, data: await deletion.authorize(uid, payload.challenge, payload.code, payload.accessToken) }
       if (payload.action === 'push') {
         if (!Array.isArray(payload.events) || !payload.events.length || payload.events.length > 50) fail('INVALID_BATCH')
         const events = payload.events.map(event => normalize(event, validIds, clock()))
@@ -38,7 +42,7 @@ exports.createSyncService = function createSyncService(store, validIds, clock = 
           if (!Number.isSafeInteger(sequence)) fail('INVALID_CURSOR')
           // Fetched documents include database-managed fields such as _id.
           // Write only application metadata; document.set rejects an _id payload.
-          await tx.setMeta({ sequence })
+          await tx.setMeta(metadata(meta, { sequence }))
           return events.map(event => event.id)
         })
         return { ok: true, data: { userId: uid, acceptedIds } }
@@ -53,11 +57,9 @@ exports.createSyncService = function createSyncService(store, validIds, clock = 
         return { ok: true, data: { userId: uid, events: rows.map(row => row.event), cursor: String(rows.at(-1)?.sequence ?? Number(cursor)), hasMore: rows.length === 200 } }
       }
       if (payload.action === 'erase') {
-        await store.transaction(uid, async tx => {
-          await tx.getMeta()
-          await tx.setMeta({ sequence: 0, deleting: true })
-        })
+        await deletion.startErase(uid, payload.deletionGrant)
         const removed = await store.erase(uid, 100)
+        if (removed < 100) await deletion.finishErase(uid, payload.deletionGrant)
         return { ok: true, data: { userId: uid, hasMore: removed === 100 } }
       }
       fail('INVALID_ACTION')

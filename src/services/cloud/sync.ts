@@ -9,7 +9,7 @@ export class SyncStoppedError extends Error {}
 export class SyncEngine {
   private running: Promise<void> | null = null
   private stopped = false
-  constructor(private readonly gateway: CloudGateway, private readonly local: LocalRepository, private readonly userId: string, private readonly validWordIds: Set<string>) {}
+  constructor(private readonly gateway: Pick<CloudGateway, 'identify' | 'pushEvents' | 'pullEvents'>, private readonly local: LocalRepository, private readonly userId: string, private readonly validWordIds: Set<string>) {}
   stop() { this.stopped = true }
   private check() { if (this.stopped) throw new SyncStoppedError('同步会话已结束。') }
   sync(pullOnly = false) {

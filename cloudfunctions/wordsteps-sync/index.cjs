@@ -1,6 +1,7 @@
 const cloud = require('@cloudbase/node-sdk')
 const { createHash } = require('node:crypto')
 const { createSyncService } = require('./service.cjs')
+const { createDeletionProvider } = require('./deletion-auth.cjs')
 const app = cloud.init({ env: cloud.SYMBOL_CURRENT_ENV })
 const db = app.database()
 const EVENTS = 'wordsteps_events'
@@ -35,9 +36,13 @@ const store = {
     return response.data.length
   },
 }
-const handle = createSyncService(store, new Set(require('./word-ids.json')))
-exports.main = async event => {
+const validIds = new Set(require('./word-ids.json'))
+exports.main = async (event, context) => {
   // CloudBase supplies this identity. Never use event.userId as an authority.
   const principal = app.auth().getUserInfo()
+  // Resolve platform namespace at invocation time, not during module startup.
+  const runtime = cloud.getCloudbaseContext(context)
+  const envId = process.env.WORDSTEPS_ENV_ID || runtime.SCF_NAMESPACE || process.env.SCF_NAMESPACE || process.env.TCB_ENV
+  const handle = createSyncService(store, validIds, Date.now, createDeletionProvider(envId))
   return handle(event, { uid: principal.uid, isAnonymous: principal.isAnonymous })
 }

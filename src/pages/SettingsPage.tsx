@@ -99,6 +99,6 @@ export function SettingsPage() {
     <PrivacyNotice />
     <section className="info-row"><details><summary>清除本机学习档案</summary><p>清除当前档案的事件、统计、目标和随机设备标识，不会删除云端或已下载备份。账号档案清除后同时退出，再登录仍可读取云端记录。操作不能撤销，请先保存需要的备份。</p><label className="password-label">输入“清除学习记录”确认<input value={clearConfirmation} disabled={busy} onChange={event => setClearConfirmation(event.target.value)} autoComplete="off" /></label><button className="button secondary install-button" disabled={busy || clearConfirmation !== '清除学习记录'} onClick={() => void clearLocal()}>确认清除本机档案</button></details></section>
     <InstallApp />
-    <section className="info-row"><h2>关于 WordSteps</h2><p>v{__APP_VERSION__.split('-')[0]} · 本地离线学习版。当前浏览器的游客档案，账号同步将在 M3 接入。</p></section>
+    <section className="info-row"><h2>关于 WordSteps</h2><p>v{__APP_VERSION__.split('-')[0]} · 支持本地离线学习。游客记录保存在当前浏览器；启用邮箱登录后可在手机与电脑之间同步学习记录。</p></section>
   </>
 }

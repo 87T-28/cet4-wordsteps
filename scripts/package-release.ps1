@@ -42,5 +42,5 @@ $sourceFiles = @(
 Write-Package 'cet4-wordsteps-source.zip' $projectRoot $sourceFiles
 
 $functionRoot = Join-Path $projectRoot 'cloudfunctions/wordsteps-sync'
-$functionFiles = @('index.js', 'index.cjs', 'service.cjs', 'word-ids.json', 'package.json', 'package-lock.json') | ForEach-Object { Get-Item -LiteralPath (Join-Path $functionRoot $_) }
+$functionFiles = @('index.js', 'index.cjs', 'service.cjs', 'deletion-auth.cjs', 'word-ids.json', 'package.json', 'package-lock.json') | ForEach-Object { Get-Item -LiteralPath (Join-Path $functionRoot $_) }
 Write-Package 'wordsteps-sync.zip' $functionRoot $functionFiles

@@ -23,6 +23,7 @@ export interface AccountState {
   error: string
   lastSync: string | null
   configured: boolean
+  deletionReady: boolean
 }
 export class AccountStore {
   private state: AccountState
@@ -38,7 +39,7 @@ export class AccountStore {
   private removeTriggers: (() => void) | null = null
   private channel: BroadcastChannel | null = null
   constructor(readonly config: CloudConfig | null, private readonly factory = createCloudGateway, private readonly guest = guestRepository) {
-    this.state = { user: null, repository: guest, phase: 'guest', busy: false, syncing: false, pending: 0, guestCount: 0, accountCount: 0, mergeAdded: 0, mergeAvailable: false, error: '', lastSync: null, configured: Boolean(config) }
+    this.state = { user: null, repository: guest, phase: 'guest', busy: false, syncing: false, pending: 0, guestCount: 0, accountCount: 0, mergeAdded: 0, mergeAvailable: false, error: '', lastSync: null, configured: Boolean(config), deletionReady: false }
   }
   snapshot = () => this.state
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
@@ -110,7 +111,7 @@ export class AccountStore {
     const generation = this.generation
     const local = accountRepository(this.config!.envId, user.id)
     this.engine = new SyncEngine(this.gateway!, local, user.id, validIds)
-    this.patch({ user, repository: local, phase: 'loading', syncing: true, error: '', mergeAvailable: false, pending: 0, guestCount: 0, accountCount: 0, mergeAdded: 0, lastSync: null })
+    this.patch({ user, repository: local, phase: 'loading', syncing: true, error: '', mergeAvailable: false, pending: 0, guestCount: 0, accountCount: 0, mergeAdded: 0, lastSync: null, deletionReady: false })
     try {
       await this.engine.sync(true)
       if (generation !== this.generation) return
@@ -182,7 +183,7 @@ export class AccountStore {
     this.channel?.close(); this.channel = null
     this.stop()
     if (this.config) { sessionStorage.removeItem(this.consentKey()); forgetCloudSession(this.config.envId) }
-    this.patch({ user: null, repository: this.guest, phase: 'guest', busy: false, syncing: false, pending: 0, error: '', lastSync: null })
+    this.patch({ user: null, repository: this.guest, phase: 'guest', busy: false, syncing: false, pending: 0, error: '', lastSync: null, deletionReady: false })
     this.gateway = null
     this.connection = null
     // Clear SDK in-memory sessions by reloading; only our namespaced storage is removed.
@@ -190,15 +191,27 @@ export class AccountStore {
     if (reload) window.location.reload()
     else await remoteSignOut
   }
-  async requestDeletionCode() { if (this.gateway && this.state.user) await this.gateway.requestDeletionCode() }
-  async deleteAccount(code: string) {
-    if (!this.state.user || !this.gateway || this.state.busy) return
+  async requestDeletionCode() {
+    if (!this.gateway || !this.state.user || this.state.busy) return
+    this.patch({ deletionReady: false })
+    await this.gateway.requestDeletionCode()
+  }
+  async verifyDeletionCode(code: string) {
+    if (!this.gateway || !this.state.user || this.state.busy) return
+    const generation = this.generation
+    this.patch({ deletionReady: false, busy: true, error: '' })
+    try {
+      await this.gateway.authorizeDeletion(code)
+      if (generation === this.generation) this.patch({ deletionReady: true })
+    } finally { if (generation === this.generation) this.patch({ busy: false }) }
+  }
+  async deleteAccount() {
+    if (!this.state.user || !this.gateway || this.state.busy || !this.state.deletionReady) return
     const user = this.state.user
     const local = this.state.repository
     this.patch({ busy: true })
     let deletionStarted = false
     try {
-      await this.gateway.authorizeDeletion(code)
       deletionStarted = true
       this.stop(); this.patch({ syncing: false })
       for (let page = 0; page < 501; page++) {
@@ -210,7 +223,7 @@ export class AccountStore {
       await this.gateway.deleteIdentity()
       await local.clearLocalData()
       await this.logout()
-    } catch { this.patch({ busy: false, error: deletionStarted ? '注销未完全完成，请联网后重试。进入删除状态的云端档案会拒绝旧会话上传。' : '注销验证未通过，没有开始删除记录。请重新获取验证码。' }) }
+    } catch { this.patch({ busy: false, deletionReady: false, error: deletionStarted ? '注销未完全完成，请重新获取验证码并验证后重试。已进入删除状态的云端档案会拒绝旧会话上传。' : '注销验证未通过，请重新获取验证码。' }) }
   }
 }
 export const accountStore = new AccountStore(cloudConfig)
