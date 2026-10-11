@@ -16,6 +16,35 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 describe('PWA lifecycle', () => {
+  it('distinguishes the first installation from later updates in the same tab', async () => {
+    const worker = Object.assign(new EventTarget(), { controller: null })
+    vi.stubGlobal('navigator', { onLine: true, serviceWorker: worker })
+    const pwa = await import('./pwa')
+    pwa.startPwa(); worker.dispatchEvent(new Event('controllerchange'))
+    expect(pwa.getPwaState()).toMatchObject({ offlineReady: true, updateReady: false })
+    worker.dispatchEvent(new Event('controllerchange'))
+    expect(pwa.getPwaState()).toMatchObject({ updateReady: true, reloadNeeded: true })
+    expect(reload).not.toHaveBeenCalled()
+  })
+  it('handles native control changes even when Workbox omits its update callback', async () => {
+    const worker = Object.assign(new EventTarget(), { controller: {} })
+    vi.stubGlobal('navigator', { onLine: true, serviceWorker: worker })
+    const pwa = await import('./pwa')
+    pwa.startPwa(); mocks.options.onNeedRefresh?.()
+    await pwa.applyPwaUpdate()
+    worker.dispatchEvent(new Event('controllerchange'))
+    mocks.options.onNeedReload?.()
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+  it('announces native external updates without interrupting an unfinished word', async () => {
+    const worker = Object.assign(new EventTarget(), { controller: {} })
+    vi.stubGlobal('navigator', { onLine: true, serviceWorker: worker })
+    window.location.hash = '#/learn'
+    const pwa = await import('./pwa')
+    pwa.startPwa(); worker.dispatchEvent(new Event('controllerchange'))
+    expect(pwa.getPwaState()).toMatchObject({ updateReady: true, reloadNeeded: true, reloadFromPath: '/learn' })
+    expect(reload).not.toHaveBeenCalled()
+  })
   it('starts once, announces complete precache, and waits for consent to update', async () => {
     const pwa = await import('./pwa')
     pwa.startPwa(); pwa.startPwa()

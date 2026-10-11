@@ -24,6 +24,9 @@ export default defineConfig(({ mode }) => {
         attrs: { 'http-equiv': 'Content-Security-Policy', content: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${cloudOrigin}; font-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'` },
       }],
     }, VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['favicon.svg', 'icons/*.png', 'licenses/*.txt', 'data/*.json'],
@@ -38,16 +41,15 @@ export default defineConfig(({ mode }) => {
           { src: 'icons/wordsteps-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
+      injectManifest: {
+        rollupFormat: 'iife',
         globPatterns: ['**/*.{js,css,html,svg,png,json,txt,webmanifest}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        navigateFallback: 'index.html', cleanupOutdatedCaches: true,
-        skipWaiting: false, clientsClaim: true,
       },
       devOptions: { enabled: false },
     })],
     base: env.VITE_BASE_PATH || './',
-    define: { __APP_VERSION__: JSON.stringify(process.env.WORDSTEPS_BUILD_VERSION || '0.3.4') },
+    define: { __APP_VERSION__: JSON.stringify(process.env.WORDSTEPS_BUILD_VERSION || '0.3.5') },
     build: {
       rollupOptions: { output: { manualChunks: { react: ['react', 'react-dom', 'react-router-dom'], database: ['dexie', 'dexie-react-hooks'], cloudbase: ['@cloudbase/js-sdk'] } } },
     },

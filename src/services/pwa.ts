@@ -21,6 +21,14 @@ let started = false
 let checkInFlight = false
 let reloadAuthorized = false
 let activatedUpdate = false
+let reloadTriggered = false
+
+function controllerChanged() {
+  activatedUpdate = true
+  if (reloadAuthorized) {
+    if (!reloadTriggered) { reloadTriggered = true; window.location.reload() }
+  } else patch({ updateReady: true, offlineReady: true, reloadNeeded: true, reloadFromPath: (window.location.hash ?? '').slice(1).split('?')[0] || '/' })
+}
 
 function patch(changes: Partial<PwaState>) { state = { ...state, ...changes }; listeners.forEach(listener => listener()) }
 export function subscribePwa(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } }
@@ -38,6 +46,14 @@ export function startPwa() {
   started = true
   if (!import.meta.env.PROD || !('serviceWorker' in navigator) || !window.isSecureContext) return
   patch({ supported: true, installed: window.matchMedia?.('(display-mode: standalone)').matches ?? false })
+  // Workbox can classify a later update as external and omit its update callback.
+  // Observe native control changes too; a user-authorized update reloads only once.
+  let hadController = Boolean(navigator.serviceWorker.controller)
+  navigator.serviceWorker.addEventListener?.('controllerchange', () => {
+    if (!hadController && !reloadAuthorized) { hadController = true; patch({ offlineReady: true }); return }
+    hadController = true
+    controllerChanged()
+  })
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault(); installPrompt = event as InstallPrompt; patch({ canInstall: true })
   })
@@ -46,12 +62,7 @@ export function startPwa() {
     immediate: true,
     onOfflineReady: () => patch({ offlineReady: true, error: '' }),
     onNeedRefresh: () => patch({ updateReady: true, error: '' }),
-    onNeedReload: () => {
-      // Another tab may activate a worker while this tab is answering a word.
-      activatedUpdate = true
-      if (reloadAuthorized) window.location.reload()
-      else patch({ updateReady: true, offlineReady: true, reloadNeeded: true, reloadFromPath: (window.location.hash ?? '').slice(1).split('?')[0] || '/' })
-    },
+    onNeedReload: controllerChanged,
     onRegisteredSW: (_url, worker) => {
       registration = worker
       if (worker?.active) patch({ offlineReady: true })
@@ -70,11 +81,11 @@ export async function applyPwaUpdate() {
   patch({ updating: true, error: '' })
   reloadAuthorized = true
   try {
-    if (activatedUpdate) window.location.reload()
+    if (activatedUpdate) controllerChanged()
     else {
       await activateUpdate(true)
       // The worker may already control this page even if its earlier event was missed.
-      if (registration?.active?.state === 'activated' && !registration.waiting && !registration.installing && navigator.serviceWorker.controller === registration.active) window.location.reload()
+      if (registration?.active?.state === 'activated' && !registration.waiting && !registration.installing && navigator.serviceWorker.controller === registration.active) controllerChanged()
     }
   }
   catch { reloadAuthorized = false; patch({ updating: false, error: '更新未完成，学习记录仍保留。请联网后重试。' }) }
