@@ -6,7 +6,7 @@ export interface Meta {
 }
 export interface DeletionProvider {
   getProfile(accessToken: string): Promise<{ id: string; email?: string }>
-  sendVerification(email: string | undefined, accessToken: string): Promise<string>
+  sendVerification(email: string, accessToken: string): Promise<string>
   verify(verificationId: string, code: string): Promise<string>
   sudo(verificationToken: string, accessToken: string): Promise<string>
 }

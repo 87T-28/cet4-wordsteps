@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
       devOptions: { enabled: false },
     })],
     base: env.VITE_BASE_PATH || './',
-    define: { __APP_VERSION__: JSON.stringify(process.env.WORDSTEPS_BUILD_VERSION || '0.3.2') },
+    define: { __APP_VERSION__: JSON.stringify(process.env.WORDSTEPS_BUILD_VERSION || '0.3.3') },
     build: {
       rollupOptions: { output: { manualChunks: { react: ['react', 'react-dom', 'react-router-dom'], database: ['dexie', 'dexie-react-hooks'], cloudbase: ['@cloudbase/js-sdk'] } } },
     },

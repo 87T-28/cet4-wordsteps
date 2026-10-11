@@ -145,10 +145,11 @@ describe('server-authorized learning events', () => {
     expect(store.metas.get(a.uid)?.deleting).not.toBe(true)
   })
   it('binds the platform-verified profile and challenge to the function principal', async () => {
-    const { handle, provider, request, authorize, store } = deletionSetup()
+    const { handle, provider, authorize, store } = deletionSetup()
     expect(await handle({ action: 'deletion-request', expectedUserId: a.uid, accessToken: 'access-b', email: 'ignored' }, a)).toMatchObject({ code: 'IDENTITY_MISMATCH' })
     expect(provider.sendVerification).not.toHaveBeenCalled()
-    const requested = await request()
+    const requested = await handle({ action: 'deletion-request', expectedUserId: a.uid, accessToken: 'access-a', email: ['forged', 'example.invalid'].join('@') }, a)
+    expect(provider.sendVerification).toHaveBeenCalledWith(['learner', 'example.invalid'].join('@'), 'access-a')
     expect(await authorize(requested.data?.challenge, b)).toMatchObject({ code: 'DELETION_VERIFICATION_REQUIRED' })
     expect(provider.verify).not.toHaveBeenCalled()
     expect(store.metas.get(b.uid)).toBeUndefined()
@@ -212,12 +213,19 @@ describe('server-authorized learning events', () => {
     expect(await handle({ action: 'erase', expectedUserId: a.uid, deletionGrant: renewed }, a)).toMatchObject({ ok: true, data: { hasMore: false } })
     expect(store.events.get(a.uid)?.size).toBe(0)
   })
-  it('can reauthenticate when primary email is absent, but never grants before platform sudo succeeds', async () => {
+  it('rejects a missing or malformed account email before sending or writing a challenge', async () => {
+    const { provider, request, store } = deletionSetup()
+    for (const email of ['', 'editable-name', 'unsafe\ncontact', 'a'.repeat(255)]) {
+      provider.getProfile.mockResolvedValue({ id: a.uid, email })
+      expect(await request()).toMatchObject({ code: 'DELETE_EMAIL_UNAVAILABLE' })
+    }
+    expect(provider.sendVerification).not.toHaveBeenCalled()
+    expect(store.metas.size).toBe(0)
+  })
+  it('never grants deletion authorization before platform sudo succeeds', async () => {
     const { provider, request, authorize, store } = deletionSetup()
-    provider.getProfile.mockResolvedValue({ id: a.uid, email: '' })
     const requested = await request()
     expect(requested.ok).toBe(true)
-    expect(provider.sendVerification).toHaveBeenCalledWith(undefined, 'access-a')
     provider.sudo.mockRejectedValue({ safeCode: 'DELETE_SUDO.unauthenticated' })
     expect(await authorize(requested.data?.challenge)).toMatchObject({ code: 'DELETE_SUDO.unauthenticated' })
     expect(store.metas.get(a.uid)?.deletionGrant).toBeFalsy()

@@ -22,6 +22,9 @@ exports.createDeletionActions = function (store, provider, clock) {
       if (typeof accessToken !== 'string' || !/^[A-Za-z0-9._-]{1,8192}$/.test(accessToken)) fail('DELETION_VERIFICATION_REQUIRED')
       const profile = await provider.getProfile(accessToken)
       if (profile?.id !== uid) fail('IDENTITY_MISMATCH')
+      // Use the authenticated account contact, never an email supplied by the caller.
+      if (typeof profile.email !== 'string' || profile.email.length > 254
+        || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) fail('DELETE_EMAIL_UNAVAILABLE')
       const ticket = randomBytes(32).toString('hex')
       const now = clock(), ticketHash = digest(ticket)
       await store.transaction(uid, async tx => {
@@ -30,7 +33,7 @@ exports.createDeletionActions = function (store, provider, clock) {
         await tx.setMeta(metadata(previous, { deletionGrant: null,
           deletionChallenge: { ticketHash, sentAt: now, expiresAt: now + TTL, attempts: 0, verificationId: '' } }))
       })
-      const verificationId = await provider.sendVerification(undefined, accessToken)
+      const verificationId = await provider.sendVerification(profile.email, accessToken)
       if (typeof verificationId !== 'string' || !verificationId || verificationId.length > 512) fail('DELETE_CHALLENGE_UNAVAILABLE')
       await store.transaction(uid, async tx => {
         const meta = await tx.getMeta()
@@ -115,8 +118,7 @@ exports.createDeletionProvider = function (envId, transport = fetch) {
       return { id: profile.sub || profile.uid, email: profile.email }
     },
     async sendVerification(email, accessToken) {
-      const result = await request('verification', { target: 'CUR_USER', usage: 'reauthentication',
-        ...(email ? { email } : {}) }, accessToken, 'DELETE_SEND')
+      const result = await request('verification', { target: 'USER', usage: 'reauthentication', email }, accessToken, 'DELETE_SEND')
       return result.verification_id
     },
     async verify(verificationId, code) {

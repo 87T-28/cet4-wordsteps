@@ -1,5 +1,15 @@
 # WordSteps 发布记录
 
+## 0.3.3：明确注销验证收件人
+
+2026-10-11。用户反馈 DELETE_SEND.failed_precondition；发送请求此前只有 CUR_USER 目标与用途，没有邮箱。按官方验证码与 sudo 文档、SDK 3.10.2 核对请求契约，改由服务端认证资料取得邮箱、校验 UID 一致后，以 USER 目标明确发送重新认证验证码。忽略客户端邮箱；认证资料缺少有效邮箱时拒绝发送。平台 sudo 成功后才签发删除许可，最终文字确认仍独立于验证。
+
+121 项测试、类型检查、ESLint、云前端构建、隐私检查及 PWA 检查通过。真实发信与邮箱验证等待本人重试，未执行现用账号删除。两账号隔离与独立测试账号最终注销仍待验收，M3/M4 不标记为全部完成。
+
+官方接口依据：https://docs.cloudbase.net/api-reference/webv2/authentication_v2#authgetverification ，https://docs.cloudbase.net/api-reference/webv2/authentication_v2#authsudo 。本机 CLI 文档读取返回 404，通过公开文档提取核对正文，并与已安装 SDK 的 reauthentication 请求对照；未传递个人资料到检索服务。
+
+已部署到现有 baas_trial 环境，wordsteps-sync 为 Active，WORDSTEPS_ENV_ID 读取匹配；云前端 28/28 文件上传且一致性校验通过。Tabbit 旧 0.3.2 缓存经正常“更新并刷新”加载 0.3.3，账号路径保持且无整页横向溢出。未读取 Edge 会话或代填邮箱验证码，实际发信结果仍待本人反馈。
+
 ## 0.3.2：服务端删除授权与恢复检查
 
 2026-10-11。修复旧 erase 接口可绕过网页邮箱二次验证的问题：服务端创建本人重新认证挑战、核验新验证码，签发绑定 UID 的短期许可，每页删除都验证许可。验证与最终文字确认分成两步，验证本身不删除。普通学习的 push/pull 保持兼容，数据库系统字段继续通过应用字段白名单处理。
