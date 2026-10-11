@@ -12,6 +12,10 @@
 
 修复已部署至原 wordsteps-sync 云函数，读取状态 Active，Nodejs20.19 / index.main / 128 MB / 30 秒；未认证调用返回 UNAUTHENTICATED。此次只改服务器，无需更新学习记录或重新学习。
 
+用户本人重试后确认同步成功、待上传队列归零；未清理本机档案或要求重新学习。电脑真实队列恢复已确认，手机双向接续和断网保存后重连同步仍待实机反馈。
+
+元数据同步修复提交：`e96268ab84689f1234b263d5490ca31ca5408bb3`；GitHub Actions：https://github.com/87T-28/cet4-wordsteps/actions/runs/38111787253 ，构建与部署最终状态 success。
+
 ## 0.3.1：免费环境后台与登录测试入口
 
 日期：2026-10-11（Asia/Shanghai）。同步云函数、两个 ADMINONLY 集合及索引已部署到上海免费体验环境，邮箱来源和自动注册已配置，最大同时在线设备数为 2，环境套餐仍为 baas_trial。真实邮箱与已认证用户同步验收待完成。
