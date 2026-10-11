@@ -14,6 +14,8 @@
 
 线上通过正常 PWA 更新加载修复；同一 SDK 的无收件人请求成功抵达认证网关，返回 HTTP 400 / invalid_argument，无 connect-src 拦截和网络失败。此验证仅证明请求连通，不代表真实邮件发送和账号同步已经通过。
 
+认证修复源码提交：`13a7cbe3c4c54dec2829b1aae50e14ae8f3b917e`；GitHub Actions：https://github.com/87T-28/cet4-wordsteps/actions/runs/38110429639 ，构建与部署最终状态 success。GitHub 发布仍保留本地模式。源码包与云函数包已重新生成，排除本机配置、凭据和学习记录。
+
 ## 0.3.0：M3 代码准备
 
 日期：2026-10-11（Asia/Shanghai）。代码已实现邮箱认证、账号隔离、明确的游客合并和事件增量同步，包含 wordsteps-sync 云函数及免费环境配置说明。用户尚无 CloudBase 环境；真实邮箱及两设备验收未完成，M3 仍待启用。
