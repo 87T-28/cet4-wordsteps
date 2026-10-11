@@ -64,6 +64,24 @@ describe('server-authorized learning events', () => {
     expect(store.events.get(a.uid)?.size).toBe(1)
     expect((await handle({ action: 'pull', expectedUserId: b.uid, cursor: null }, b)).data?.events).toEqual([event])
   })
+  it('uploads and retries after metadata reads include the database-managed ID', async () => {
+    const { handle, store } = setup()
+    const transaction = store.transaction.bind(store)
+    store.transaction = (uid, work) => transaction(uid, tx => work({ ...tx,
+      getMeta: async () => { const meta = await tx.getMeta(); return meta ? { ...meta, _id: 'database-managed-meta-id' } : undefined },
+      setMeta: async meta => {
+        // CloudBase document.set rejects a fetched document containing _id.
+        if (Object.hasOwn(meta, '_id')) throw { code: 'INVALID_PARAM' }
+        await tx.setMeta(meta)
+      },
+    }))
+    expect(await handle(push([event]), a)).toMatchObject({ ok: true })
+    const next = { ...event, id: 'two' }
+    expect(await handle(push([next]), a)).toMatchObject({ ok: true, data: { acceptedIds: ['two'] } })
+    expect(await handle(push([next]), a)).toMatchObject({ ok: true })
+    expect(store.metas.get(a.uid)?.sequence).toBe(2)
+    expect(store.events.get(a.uid)?.size).toBe(2)
+  })
   it('rolls back a conflicting batch rather than overwriting old history', async () => {
     const { handle, store } = setup()
     await handle(push([event]), a)

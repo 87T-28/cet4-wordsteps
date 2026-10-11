@@ -36,7 +36,9 @@ exports.createSyncService = function createSyncService(store, validIds, clock = 
             else { sequence++; await tx.setEvent(event.id, { sequence, event }) }
           }
           if (!Number.isSafeInteger(sequence)) fail('INVALID_CURSOR')
-          await tx.setMeta({ ...meta, sequence })
+          // Fetched documents include database-managed fields such as _id.
+          // Write only application metadata; document.set rejects an _id payload.
+          await tx.setMeta({ sequence })
           return events.map(event => event.id)
         })
         return { ok: true, data: { userId: uid, acceptedIds } }
@@ -62,7 +64,7 @@ exports.createSyncService = function createSyncService(store, validIds, clock = 
     } catch (error) {
       if (error.safeCode) return { ok: false, code: error.safeCode }
       // Preserve a narrow SDK/native error category, never database messages or data.
-      const diagnosticCode = typeof error.code === 'string' && /^DATABASE_[A-Z0-9_]{1,40}$/.test(error.code)
+      const diagnosticCode = typeof error.code === 'string' && (/^DATABASE_[A-Z0-9_]{1,40}$/.test(error.code) || error.code === 'INVALID_PARAM')
         ? error.code : error instanceof TypeError ? 'TYPE_ERROR' : 'UNEXPECTED_ERROR'
       return { ok: false, code: 'INTERNAL', diagnosticCode }
     }
