@@ -17,7 +17,7 @@ function sameEvent(left, right) { return fields.every(field => left[field] === r
 exports.createSyncService = function createSyncService(store, validIds, clock = Date.now) {
   return async function handle(payload, principal) {
     try {
-      if (!principal || typeof principal.uid !== 'string' || !/^[\w:-]{1,160}$/.test(principal.uid) || principal.isAnonymous !== false) fail('UNAUTHENTICATED')
+      if (!principal || typeof principal.uid !== 'string' || !/^[\w:-]{1,160}$/.test(principal.uid) || principal.uid === 'anon' || principal.isAnonymous !== false) fail('UNAUTHENTICATED')
       const uid = principal.uid
       if (payload?.action === 'identify') return { ok: true, data: { userId: uid } }
       if (!payload || payload.expectedUserId !== uid) fail('IDENTITY_MISMATCH')

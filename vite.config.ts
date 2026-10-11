@@ -2,13 +2,14 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { loadEnv } from 'vite'
+import { assertPublicCloudConfig } from './src/services/cloud/public-config'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   const cloudEnv = env.VITE_CLOUDBASE_ENV_ID?.trim()
   const cloudRegion = env.VITE_CLOUDBASE_REGION?.trim() || 'ap-shanghai'
   const cloudKey = env.VITE_CLOUDBASE_PUBLISHABLE_KEY?.trim()
-  if (cloudEnv && cloudKey && (!/^[a-zA-Z0-9-]{5,100}$/.test(cloudEnv) || !/^ap-[a-z]+$/.test(cloudRegion) || cloudKey.startsWith('AKID') || /PRIVATE KEY/.test(cloudKey))) throw new Error('Invalid public CloudBase configuration')
+  if (cloudEnv && cloudKey) assertPublicCloudConfig({ envId: cloudEnv, region: cloudRegion, publishableKey: cloudKey })
   const cloudOrigin = cloudEnv && cloudKey ? ` https://${cloudEnv}.${cloudRegion}.tcb-api.tencentcloudapi.com` : ''
 
   return {
@@ -42,7 +43,7 @@ export default defineConfig(({ mode }) => {
       devOptions: { enabled: false },
     })],
     base: env.VITE_BASE_PATH || './',
-    define: { __APP_VERSION__: JSON.stringify(process.env.WORDSTEPS_BUILD_VERSION || '0.3.0') },
+    define: { __APP_VERSION__: JSON.stringify(process.env.WORDSTEPS_BUILD_VERSION || '0.3.1') },
     build: {
       rollupOptions: { output: { manualChunks: { react: ['react', 'react-dom', 'react-router-dom'], database: ['dexie', 'dexie-react-hooks'], cloudbase: ['@cloudbase/js-sdk'] } } },
     },

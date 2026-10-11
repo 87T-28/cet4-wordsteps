@@ -4,15 +4,25 @@ import path from 'node:path'
 const roots = ['src', 'public', 'docs', 'scripts', '.github', 'cloudfunctions']
 if (process.argv.includes('--dist')) roots.push('dist')
 const files = ['README.md', 'index.html', 'package.json', 'package-lock.json', 'vite.config.ts', '.gitignore', '.env.example', 'eslint.config.js', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json']
-async function collect(directory) {
+const sources = new Map()
+async function collect(directory, prefix = directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name)
+    const label = path.join(prefix, entry.name)
     if (entry.isSymbolicLink()) throw new Error('Refusing linked file: ' + file)
-    if (entry.isDirectory()) await collect(file)
-    else files.push(file)
+    if (entry.isDirectory()) await collect(file, label)
+    else { files.push(label); sources.set(label, file) }
   }
 }
 for (const root of roots) await collect(root)
+const artifactOption = process.argv.indexOf('--artifact-dir')
+if (artifactOption >= 0) {
+  const directory = process.argv[artifactOption + 1]
+  if (!directory) throw new Error('Missing artifact directory')
+  const relative = path.relative(process.cwd(), path.resolve(directory))
+  if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) throw new Error('Artifact must be inside the project')
+  await collect(directory, 'artifact')
+}
 const checks = [
   ['email address', /[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/],
   ['private Windows home path', /\b[A-Za-z]:[\\/]Users[\\/][^\s'"<>]+/],
@@ -26,7 +36,7 @@ for (const file of files) {
     failures.push({ file, category: 'private or excluded file' }); continue
   }
   if (file !== '.env.example' && !/\.(?:[cm]?[jt]sx?|json|md|html|css|txt|yml|yaml|ps1)$/.test(file)) continue
-  const text = await readFile(file, 'utf8')
+  const text = await readFile(sources.get(file) ?? file, 'utf8')
   let emailText = text
   if (/(^|[\\/])package-lock\.json$/.test(file)) {
     const lock = JSON.parse(text)

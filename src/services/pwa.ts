@@ -71,7 +71,11 @@ export async function applyPwaUpdate() {
   reloadAuthorized = true
   try {
     if (activatedUpdate) window.location.reload()
-    else await activateUpdate(true)
+    else {
+      await activateUpdate(true)
+      // The worker may already control this page even if its earlier event was missed.
+      if (registration?.active?.state === 'activated' && !registration.waiting && !registration.installing && navigator.serviceWorker.controller === registration.active) window.location.reload()
+    }
   }
   catch { reloadAuthorized = false; patch({ updating: false, error: '更新未完成，学习记录仍保留。请联网后重试。' }) }
 }

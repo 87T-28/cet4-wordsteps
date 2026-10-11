@@ -39,6 +39,7 @@ describe('server-authorized learning events', () => {
   it('rejects anonymous calls and oversized batches', async () => {
     const { handle } = setup()
     expect(await handle(push([event]), { ...a, isAnonymous: true })).toMatchObject({ code: 'UNAUTHENTICATED' })
+    expect(await handle({ action: 'identify' }, { uid: 'anon', isAnonymous: false })).toMatchObject({ code: 'UNAUTHENTICATED' })
     expect(await handle(push(Array.from({ length: 51 }, (_, index) => ({ ...event, id: String(index) }))), a)).toMatchObject({ code: 'INVALID_BATCH' })
   })
   it('rejects missing or non-string platform identities without touching storage', async () => {

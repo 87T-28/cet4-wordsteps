@@ -59,6 +59,17 @@ describe('PWA lifecycle', () => {
     expect(pwa.getPwaState().error).toContain('更新未完成')
     expect(reload).not.toHaveBeenCalled()
   })
+  it('reloads an accepted update when the new worker is already active and its event was missed', async () => {
+    const controller = { state: 'activated' } as ServiceWorker
+    vi.stubGlobal('navigator', { onLine: true, serviceWorker: { controller } })
+    const registration = { active: controller, waiting: null, installing: null, update: vi.fn().mockResolvedValue(undefined) } as unknown as ServiceWorkerRegistration
+    const pwa = await import('./pwa'); pwa.startPwa()
+    mocks.options.onRegisteredSW?.('/sw.js', registration)
+    mocks.options.onNeedRefresh?.()
+    expect(reload).not.toHaveBeenCalled()
+    await pwa.applyPwaUpdate()
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
   it('avoids service workers in development or insecure contexts', async () => {
     vi.stubEnv('PROD', false)
     const pwa = await import('./pwa'); pwa.startPwa()

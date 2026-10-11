@@ -10,7 +10,7 @@
 
 本地 main 跟踪 origin/main；仓库 Pages 来源为 GitHub Actions，后续推送会自动运行校验并部署。
 
-0.3.0 包含账号和同步代码，但用户尚无 CloudBase 环境，线上仍只保存本机学习记录。启用说明见 `CLOUDBASE_SETUP.md`；环境配置缺失时不提供邮箱输入或云请求。公开用户名关联及平台访问日志仍适用隐私报告中的说明。
+0.3.1 的 CloudBase 后台和默认测试域名已部署。免费体验环境拒绝添加 GitHub Pages 安全域名，GitHub 入口仍保留本地模式；CloudBase 入口提供邮箱认证测试。配置/激活值缺失时不提供邮箱输入或云请求。真实邮件和双设备验收见 `CLOUDBASE_SETUP.md`；公开用户名、云环境编号关联及平台日志仍适用隐私报告中的说明。
 
 ## 仓库和 Pages 配置
 
@@ -55,6 +55,6 @@ GitHub Pages 仅为免费测试入口。源码公开不等同于公开学习数�
 
 ## M3 启用边界
 
-Pages 工作流只部署前端，不自动部署 CloudBase 云函数或创建收费资源。环境 ID、地域、Publishable Key 使用 Actions Variables；管理密钥禁止进入网页。先部署并验证云函数身份、集合规则及邮箱能力，再设置前端公开变量并重新运行工作流。真实双设备和权限验收通过前，不宣称云同步已经可用。
+Pages 工作流只部署前端，不自动部署 CloudBase 云函数或创建收费资源。Actions Variables 包括环境 ID、地域、Publishable Key 和显式 VITE_CLOUDBASE_ENABLED；管理密钥禁止进入网页。本环境的 Pages 来源被免费版拒绝，因此不激活该入口的云功能。默认 CloudBase 测试域名已经允许，使用独立构建、/wordsteps/ 托管和作用域，保留平台其它资源。真实双设备和权限验收通过前，不宣称 M3 全部通过。
 
 发布包使用 `powershell -File scripts/package-release.ps1` 生成：源码包 `.local/cet4-wordsteps-source.zip` 与上传用 `.local/wordsteps-sync.zip`。明确列出可公开文件，云函数 ZIP 的入口和 package.json 位于根层，包含锁文件与词 ID 白名单，不含 node_modules 或任何凭据。打包前先运行 cloud:prepare 和 privacy:check。

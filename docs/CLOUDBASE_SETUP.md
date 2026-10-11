@@ -1,6 +1,6 @@
 # M3：开通免费环境与启用同步
 
-当前：账号与同步代码、云函数、部署包已准备；用户尚未创建 CloudBase 环境。网站仍为本地模式，邮箱登录与真实双设备同步尚未启用。不要把模拟测试当作云环境验收。
+当前：用户已创建上海免费体验环境。两个集合的 ADMINONLY 权限、事件索引和 wordsteps-sync 云函数已部署，邮箱来源已开启并允许自动注册，客户端最大同时在线设备数已调整为 2，套餐仍为 baas_trial / 基础客户端等级。CloudBase 默认测试域名已发布 0.3.1 邮箱登录入口；真实邮件、账号和双设备验收仍待完成。
 
 ## 1. 使用你的腾讯云账号创建环境
 
@@ -10,8 +10,8 @@
 
 ## 2. 控制台配置
 
-- 登录方式启用邮箱验证码，登录模式选允许新用户注册并登录；关闭不需要的匿名登录。
-- 安全域名添加网站的来源 `https://87t-28.github.io`，注意同一账号 Pages 的不同项目共用这个来源。
+- 登录方式启用邮箱验证码，登录模式选允许新用户注册并登录；关闭不需要的匿名登录。平台要求先配置发件人：使用默认邮件服务时按控制台设置发件地址；若选择自定义 SMTP，由本人在控制台填写授权码。发件地址、SMTP 密码和验证码不进入前端或源码。
+- 2026-10-11 实测免费体验版添加 GitHub Pages 安全域名被拒绝，返回 OperationDenied.FreePackageDenied。不要升级付费套餐，也不要绕过该限制。使用环境已经允许的 CloudBase 默认测试域名作为云登录测试入口，GitHub Pages 保留本地模式。
 - 选择当前环境后，打开 **API Key 管理**：https://tcb.cloud.tencent.com/dev#/env/apikey 。官方身份认证文档列出此入口：https://docs.cloudbase.net/service/authentication 。部分 SDK 文档的旧链接 identity/token-management 现在会打开“登录态配置”；该页面的 Access Token、Refresh Token 不是需要的公开密钥。
 - 在 API Key 管理中生成明确标为 **Publishable Key**（客户端公开密钥）的项。不要使用服务端 API Key、Secret Key、SecretId、SecretKey 或登录私钥。若页面展示已有公开密钥，先使用已有值，不随意重新生成。
 - 按 `cloudfunctions/README.md` 创建两集合、禁止客户端直接读写、建立索引、部署 wordsteps-sync 云函数。函数包包含 package.json，选择在线安装依赖。
@@ -29,9 +29,12 @@
 VITE_CLOUDBASE_ENV_ID
 VITE_CLOUDBASE_REGION
 VITE_CLOUDBASE_PUBLISHABLE_KEY
+VITE_CLOUDBASE_ENABLED
 ```
 
-配置后重新构建/部署。生产 CSP 只额外允许此环境对应的 `环境ID.地域.tcb-api.tencentcloudapi.com`，不泛化放行整个腾讯域名。配置缺失时不会启动云 SDK、收集邮箱或上传学习记录。
+后台和发件人设置完成后，把 VITE_CLOUDBASE_ENABLED 设为 true，再构建/部署。仅提供三项公开配置不自动开通登录。构建和网页共享公开密钥声明校验，拒绝服务端密钥、个人登录令牌、环境/地域不符和过期值；由平台验证签名。CSP 只额外允许本环境的 API 来源。未激活时不启动云 SDK，也不提供邮箱输入。
+
+默认域名使用 `/wordsteps/` 子目录，构建时设置 VITE_BASE_PATH=/wordsteps/，使用 hosting deploy 上传 dist 到 wordsteps，保留平台已有的 __auth 和 cloud-admin 文件，禁止 prune 整个托管空间。Service Worker 仅管理 wordsteps 子目录。首次测试域名提醒由平台显示；确认后若回到首页，点“账号”。通过加密备份迁移旧地址的本机记录。
 
 ## 4. 实际启用前验收
 
@@ -44,6 +47,6 @@ VITE_CLOUDBASE_PUBLISHABLE_KEY
 
 学习目标暂按设备设置，当前同步范围是学习事件与据此重建的进度/错词/统计。登录会话保存在本次标签页 sessionStorage；本机缓存不等于整库加密，共用设备应退出或清除账号缓存。
 
-登录态配置中的“最大同时在线设备数”也影响验收。如果显示 1 台，需核对是否能在免费环境中调整至至少 2 台；若调整要求付费，不升级，也不宣称手机与电脑可同时登录。Access Token、Refresh Token 不作为部署配置收集。
+登录态配置中的“最大同时在线设备数”也影响验收。本环境已读取确认值为 2，客户端等级仍为基础等级、环境仍为免费体验版；其它环境需自行核对，不保证规则长期不变。Access Token、Refresh Token 不作为部署配置收集。
 
 只有上述真实环境与两设备检查通过，才算 M3 完成。后续 M4 再做更完整的安全、恢复及朋友试用验收。
